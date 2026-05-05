@@ -16,7 +16,7 @@ export default function Home() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [currentEdit, setCurrentEdit] = useState(null)
-  const [selectedExams, setSelectedExams] = useState([])
+  const [selectedExams, setSelectedExams] = useState([]) // [{ name, status }]
   const [otherExam, setOtherExam] = useState('')
 
   const days = ['Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sb', 'Nd']
@@ -34,18 +34,39 @@ export default function Home() {
     'biopsja',
   ]
 
-  // Funkcja zwracająca aktualny dzień tygodnia
+  const statuses = [
+    'Zlecone',
+    'W trakcie',
+    'Wykonane',
+    'Anulowane',
+    'Do przygotowania',
+  ]
+
+  const getStatusColor = (status) => {
+    switch(status) {
+      case 'Zlecone':
+        return 'bg-gray-200 text-gray-800'
+      case 'W trakcie':
+        return 'bg-blue-500 text-white'
+      case 'Wykonane':
+        return 'bg-green-500 text-white'
+      case 'Anulowane':
+        return 'bg-gray-300 text-gray-500 line-through'
+      case 'Do przygotowania':
+        return 'bg-red-500 text-white'
+      default:
+        return 'bg-gray-200 text-gray-800'
+    }
+  }
+
   const getCurrentDay = () => {
     const dayIndex = new Date().getDay()
-    // JavaScript: 0=Niedziela, 1=Poniedziałek, ..., 6=Sobota
-    // Nasza tablica: 0=Pn, 1=Wt, ..., 6=Nd
-    const mapping = [6, 0, 1, 2, 3, 4, 5] // Nd, Pn, Wt, Śr, Czw, Pt, Sb
+    const mapping = [6, 0, 1, 2, 3, 4, 5]
     return days[mapping[dayIndex]]
   }
 
   const currentDay = getCurrentDay()
 
-  // Funkcja zwracająca badania na dziś
   const getTodayExams = () => {
     const todayExams = []
     patients.forEach(patient => {
@@ -93,21 +114,28 @@ export default function Home() {
     const patient = patients.find(p => p.id === patientId)
     const existingExams = patient.exams[day] || []
     
-    const standardExams = existingExams.filter(exam => examsList.includes(exam))
-    const customExams = existingExams.filter(exam => !examsList.includes(exam))
-    
     setCurrentEdit({ patientId, day })
-    setSelectedExams(standardExams)
-    setOtherExam(customExams.join(', '))
+    setSelectedExams(existingExams.map(exam => ({
+      name: exam.name,
+      status: exam.status
+    })))
+    setOtherExam('')
     setModalOpen(true)
   }
 
-  const toggleExam = (exam) => {
-    if (selectedExams.includes(exam)) {
-      setSelectedExams(selectedExams.filter(e => e !== exam))
+  const toggleExam = (examName) => {
+    const existing = selectedExams.find(e => e.name === examName)
+    if (existing) {
+      setSelectedExams(selectedExams.filter(e => e.name !== examName))
     } else {
-      setSelectedExams([...selectedExams, exam])
+      setSelectedExams([...selectedExams, { name: examName, status: 'Zlecone' }])
     }
+  }
+
+  const updateExamStatus = (examName, newStatus) => {
+    setSelectedExams(selectedExams.map(exam => 
+      exam.name === examName ? { ...exam, status: newStatus } : exam
+    ))
   }
 
   const saveExam = () => {
@@ -115,9 +143,10 @@ export default function Home() {
 
     let allExams = [...selectedExams]
     
+    // Dodaj własne badanie jeśli wpisane
     if (otherExam.trim()) {
       const customExams = otherExam.split(',').map(e => e.trim()).filter(e => e)
-      allExams = [...allExams, ...customExams]
+      allExams = [...allExams, ...customExams.map(name => ({ name, status: 'Zlecone' }))]
     }
 
     setPatients(patients.map(patient => {
@@ -181,13 +210,14 @@ export default function Home() {
                     </div>
                   </div>
                   <div className="flex-1">
-                    <div className="font-semibold text-gray-900 mb-1">
+                    <div className="font-semibold text-gray-900 mb-2">
                       {item.name}
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {item.exams.map((exam, examIdx) => (
-                        <span key={examIdx} className="inline-block px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-medium">
-                          {exam}
+                        <span key={examIdx} className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(exam.status)}`}>
+                          {exam.status === 'Do przygotowania' && <span>⚠️</span>}
+                          {exam.name}
                         </span>
                       ))}
                     </div>
@@ -307,8 +337,9 @@ export default function Home() {
                           <div className="text-sm text-gray-700 min-h-[40px] flex flex-col items-center justify-center gap-1">
                             {exams.length > 0 ? (
                               exams.map((exam, idx) => (
-                                <span key={idx} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
-                                  {exam}
+                                <span key={idx} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(exam.status)}`}>
+                                  {exam.status === 'Do przygotowania' && <span>⚠️</span>}
+                                  {exam.name}
                                 </span>
                               ))
                             ) : (
@@ -329,25 +360,44 @@ export default function Home() {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">
               Badania - {currentEdit?.day}
             </h3>
             
-            <div className="space-y-2 mb-6">
-              {examsList.map(exam => (
-                <label key={exam} className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
-                  <input
-                    type="checkbox"
-                    checked={selectedExams.includes(exam)}
-                    onChange={() => toggleExam(exam)}
-                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                  />
-                  <span className="ml-3 text-gray-700 font-medium">{exam}</span>
-                </label>
-              ))}
+            {/* Lista badań z checkboxami i statusami */}
+            <div className="space-y-3 mb-6">
+              {examsList.map(examName => {
+                const selected = selectedExams.find(e => e.name === examName)
+                return (
+                  <div key={examName} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={!!selected}
+                        onChange={() => toggleExam(examName)}
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="flex-1 text-gray-700 font-medium">{examName}</span>
+                      
+                      {selected && (
+                        <select
+                          value={selected.status}
+                          onChange={(e) => updateExamStatus(examName, e.target.value)}
+                          className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          {statuses.map(status => (
+                            <option key={status} value={status}>{status}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
 
+            {/* Pole "inne" */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Inne badanie (własne):
@@ -364,6 +414,7 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Przyciski */}
             <div className="flex gap-3">
               <button
                 onClick={saveExam}
