@@ -16,9 +16,23 @@ export default function Home() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [currentEdit, setCurrentEdit] = useState(null) // { patientId, day }
-  const [examText, setExamText] = useState('')
+  const [selectedExams, setSelectedExams] = useState([])
+  const [otherExam, setOtherExam] = useState('')
 
   const days = ['Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sb', 'Nd']
+  
+  const examsList = [
+    'USG',
+    'TK',
+    'Angio-TK',
+    'MR',
+    'RTG',
+    'Echo',
+    'EKG',
+    'konsultacja',
+    'laboratorium',
+    'biopsja',
+  ]
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -48,13 +62,36 @@ export default function Home() {
 
   const openModal = (patientId, day) => {
     const patient = patients.find(p => p.id === patientId)
+    const existingExams = patient.exams[day] || []
+    
+    // Rozdziel na badania z listy i "inne"
+    const standardExams = existingExams.filter(exam => examsList.includes(exam))
+    const customExams = existingExams.filter(exam => !examsList.includes(exam))
+    
     setCurrentEdit({ patientId, day })
-    setExamText(patient.exams[day] || '')
+    setSelectedExams(standardExams)
+    setOtherExam(customExams.join(', '))
     setModalOpen(true)
+  }
+
+  const toggleExam = (exam) => {
+    if (selectedExams.includes(exam)) {
+      setSelectedExams(selectedExams.filter(e => e !== exam))
+    } else {
+      setSelectedExams([...selectedExams, exam])
+    }
   }
 
   const saveExam = () => {
     if (!currentEdit) return
+
+    let allExams = [...selectedExams]
+    
+    // Dodaj własne badanie jeśli wpisane
+    if (otherExam.trim()) {
+      const customExams = otherExam.split(',').map(e => e.trim()).filter(e => e)
+      allExams = [...allExams, ...customExams]
+    }
 
     setPatients(patients.map(patient => {
       if (patient.id === currentEdit.patientId) {
@@ -62,22 +99,21 @@ export default function Home() {
           ...patient,
           exams: {
             ...patient.exams,
-            [currentEdit.day]: examText.trim()
+            [currentEdit.day]: allExams
           }
         }
       }
       return patient
     }))
 
-    setModalOpen(false)
-    setCurrentEdit(null)
-    setExamText('')
+    closeModal()
   }
 
   const closeModal = () => {
     setModalOpen(false)
     setCurrentEdit(null)
-    setExamText('')
+    setSelectedExams([])
+    setOtherExam('')
   }
 
   return (
@@ -182,17 +218,28 @@ export default function Home() {
                         </span>
                       )}
                     </td>
-                    {days.map(day => (
-                      <td 
-                        key={day} 
-                        className="px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors"
-                        onClick={() => openModal(patient.id, day)}
-                      >
-                        <div className="text-sm text-gray-700 min-h-[40px] flex items-center justify-center">
-                          {patient.exams[day] || '-'}
-                        </div>
-                      </td>
-                    ))}
+                    {days.map(day => {
+                      const exams = patient.exams[day] || []
+                      return (
+                        <td 
+                          key={day} 
+                          className="px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors"
+                          onClick={() => openModal(patient.id, day)}
+                        >
+                          <div className="text-sm text-gray-700 min-h-[40px] flex flex-col items-center justify-center gap-1">
+                            {exams.length > 0 ? (
+                              exams.map((exam, idx) => (
+                                <span key={idx} className="inline-block px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs">
+                                  {exam}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-gray-400">-</span>
+                            )}
+                          </div>
+                        </td>
+                      )
+                    })}
                   </tr>
                 ))}
               </tbody>
@@ -203,20 +250,46 @@ export default function Home() {
 
       {/* Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">
-              Dodaj badanie - {currentEdit?.day}
+              Badania - {currentEdit?.day}
             </h3>
-            <textarea
-              value={examText}
-              onChange={(e) => setExamText(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              rows="4"
-              placeholder="Wpisz nazwę badania, np. USG, TK, laboratorium..."
-              autoFocus
-            />
-            <div className="flex gap-3 mt-6">
+            
+            {/* Lista badań */}
+            <div className="space-y-2 mb-6">
+              {examsList.map(exam => (
+                <label key={exam} className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedExams.includes(exam)}
+                    onChange={() => toggleExam(exam)}
+                    className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <span className="ml-3 text-gray-700 font-medium">{exam}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Pole "inne" */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Inne badanie (własne):
+              </label>
+              <input
+                type="text"
+                value={otherExam}
+                onChange={(e) => setOtherExam(e.target.value)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder="np. Badanie specjalistyczne"
+              />
+              <p className="mt-1 text-xs text-gray-500">
+                Możesz wpisać kilka badań oddzielonych przecinkiem
+              </p>
+            </div>
+
+            {/* Przyciski */}
+            <div className="flex gap-3">
               <button
                 onClick={saveExam}
                 className="flex-1 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
