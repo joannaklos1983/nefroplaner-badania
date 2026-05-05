@@ -4,8 +4,8 @@ import { useState } from 'react'
 
 export default function Home() {
   const [patients, setPatients] = useState([
-    { id: 1, room: '101', name: 'J.K.', notes: 'Dializa' },
-    { id: 2, room: '102', name: 'A.N.', notes: '' },
+    { id: 1, room: '101', name: 'J.K.', notes: 'Dializa', exams: {} },
+    { id: 2, room: '102', name: 'A.N.', notes: '', exams: {} },
   ])
 
   const [formData, setFormData] = useState({
@@ -13,6 +13,12 @@ export default function Home() {
     name: '',
     notes: '',
   })
+
+  const [modalOpen, setModalOpen] = useState(false)
+  const [currentEdit, setCurrentEdit] = useState(null) // { patientId, day }
+  const [examText, setExamText] = useState('')
+
+  const days = ['Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sb', 'Nd']
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -27,6 +33,7 @@ export default function Home() {
       room: formData.room,
       name: formData.name,
       notes: formData.notes,
+      exams: {},
     }
 
     setPatients([...patients, newPatient])
@@ -37,6 +44,40 @@ export default function Home() {
     if (confirm('Czy na pewno usunąć tego pacjenta?')) {
       setPatients(patients.filter(p => p.id !== id))
     }
+  }
+
+  const openModal = (patientId, day) => {
+    const patient = patients.find(p => p.id === patientId)
+    setCurrentEdit({ patientId, day })
+    setExamText(patient.exams[day] || '')
+    setModalOpen(true)
+  }
+
+  const saveExam = () => {
+    if (!currentEdit) return
+
+    setPatients(patients.map(patient => {
+      if (patient.id === currentEdit.patientId) {
+        return {
+          ...patient,
+          exams: {
+            ...patient.exams,
+            [currentEdit.day]: examText.trim()
+          }
+        }
+      }
+      return patient
+    }))
+
+    setModalOpen(false)
+    setCurrentEdit(null)
+    setExamText('')
+  }
+
+  const closeModal = () => {
+    setModalOpen(false)
+    setCurrentEdit(null)
+    setExamText('')
   }
 
   return (
@@ -112,13 +153,9 @@ export default function Home() {
                   <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Pokój</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Pacjent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Uwagi</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Pn</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Wt</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Śr</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Czw</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Pt</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Sb</th>
-                  <th className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">Nd</th>
+                  {days.map(day => (
+                    <th key={day} className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">{day}</th>
+                  ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -145,13 +182,17 @@ export default function Home() {
                         </span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
-                    <td className="px-6 py-4 text-center text-sm text-gray-400">-</td>
+                    {days.map(day => (
+                      <td 
+                        key={day} 
+                        className="px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors"
+                        onClick={() => openModal(patient.id, day)}
+                      >
+                        <div className="text-sm text-gray-700 min-h-[40px] flex items-center justify-center">
+                          {patient.exams[day] || '-'}
+                        </div>
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -159,6 +200,39 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md">
+            <h3 className="text-xl font-semibold text-gray-900 mb-4">
+              Dodaj badanie - {currentEdit?.day}
+            </h3>
+            <textarea
+              value={examText}
+              onChange={(e) => setExamText(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+              rows="4"
+              placeholder="Wpisz nazwę badania, np. USG, TK, laboratorium..."
+              autoFocus
+            />
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={saveExam}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Zapisz
+              </button>
+              <button
+                onClick={closeModal}
+                className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Anuluj
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
