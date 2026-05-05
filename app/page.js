@@ -15,7 +15,7 @@ export default function Home() {
   })
 
   const [modalOpen, setModalOpen] = useState(false)
-  const [currentEdit, setCurrentEdit] = useState(null) // { patientId, day }
+  const [currentEdit, setCurrentEdit] = useState(null)
   const [selectedExams, setSelectedExams] = useState([])
   const [otherExam, setOtherExam] = useState('')
 
@@ -33,6 +33,35 @@ export default function Home() {
     'laboratorium',
     'biopsja',
   ]
+
+  // Funkcja zwracająca aktualny dzień tygodnia
+  const getCurrentDay = () => {
+    const dayIndex = new Date().getDay()
+    // JavaScript: 0=Niedziela, 1=Poniedziałek, ..., 6=Sobota
+    // Nasza tablica: 0=Pn, 1=Wt, ..., 6=Nd
+    const mapping = [6, 0, 1, 2, 3, 4, 5] // Nd, Pn, Wt, Śr, Czw, Pt, Sb
+    return days[mapping[dayIndex]]
+  }
+
+  const currentDay = getCurrentDay()
+
+  // Funkcja zwracająca badania na dziś
+  const getTodayExams = () => {
+    const todayExams = []
+    patients.forEach(patient => {
+      const exams = patient.exams[currentDay] || []
+      if (exams.length > 0) {
+        todayExams.push({
+          room: patient.room,
+          name: patient.name,
+          exams: exams
+        })
+      }
+    })
+    return todayExams
+  }
+
+  const todayExams = getTodayExams()
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -64,7 +93,6 @@ export default function Home() {
     const patient = patients.find(p => p.id === patientId)
     const existingExams = patient.exams[day] || []
     
-    // Rozdziel na badania z listy i "inne"
     const standardExams = existingExams.filter(exam => examsList.includes(exam))
     const customExams = existingExams.filter(exam => !examsList.includes(exam))
     
@@ -87,7 +115,6 @@ export default function Home() {
 
     let allExams = [...selectedExams]
     
-    // Dodaj własne badanie jeśli wpisane
     if (otherExam.trim()) {
       const customExams = otherExam.split(',').map(e => e.trim()).filter(e => e)
       allExams = [...allExams, ...customExams]
@@ -126,6 +153,54 @@ export default function Home() {
           <p className="text-gray-600">
             Aplikacja do planowania badań pacjentów
           </p>
+        </div>
+
+        {/* Badania na dziś */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-l-4 border-blue-600">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Badania na dziś ({currentDay})
+            </h2>
+            <span className="text-sm text-gray-500">
+              {new Date().toLocaleDateString('pl-PL', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </span>
+          </div>
+          
+          {todayExams.length > 0 ? (
+            <div className="space-y-3">
+              {todayExams.map((item, idx) => (
+                <div key={idx} className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-blue-600 text-white rounded-lg flex items-center justify-center font-bold">
+                      {item.room}
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <div className="font-semibold text-gray-900 mb-1">
+                      {item.name}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {item.exams.map((exam, examIdx) => (
+                        <span key={examIdx} className="inline-block px-3 py-1 bg-blue-600 text-white rounded-full text-sm font-medium">
+                          {exam}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p className="text-lg">Brak zaplanowanych badań na dziś</p>
+              <p className="text-sm mt-2">Kliknij w komórkę dnia w tabeli poniżej, aby dodać badanie</p>
+            </div>
+          )}
         </div>
 
         {/* Formularz dodawania pacjenta */}
@@ -190,7 +265,9 @@ export default function Home() {
                   <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Pacjent</th>
                   <th className="px-6 py-4 text-left text-sm font-semibold uppercase tracking-wider">Uwagi</th>
                   {days.map(day => (
-                    <th key={day} className="px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider">{day}</th>
+                    <th key={day} className={`px-6 py-4 text-center text-sm font-semibold uppercase tracking-wider ${day === currentDay ? 'bg-yellow-400 text-gray-900' : ''}`}>
+                      {day}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -220,10 +297,11 @@ export default function Home() {
                     </td>
                     {days.map(day => {
                       const exams = patient.exams[day] || []
+                      const isToday = day === currentDay
                       return (
                         <td 
                           key={day} 
-                          className="px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors"
+                          className={`px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors ${isToday ? 'bg-yellow-50' : ''}`}
                           onClick={() => openModal(patient.id, day)}
                         >
                           <div className="text-sm text-gray-700 min-h-[40px] flex flex-col items-center justify-center gap-1">
@@ -256,7 +334,6 @@ export default function Home() {
               Badania - {currentEdit?.day}
             </h3>
             
-            {/* Lista badań */}
             <div className="space-y-2 mb-6">
               {examsList.map(exam => (
                 <label key={exam} className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors">
@@ -271,7 +348,6 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Pole "inne" */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Inne badanie (własne):
@@ -288,7 +364,6 @@ export default function Home() {
               </p>
             </div>
 
-            {/* Przyciski */}
             <div className="flex gap-3">
               <button
                 onClick={saveExam}
