@@ -1,3 +1,5 @@
+import './globals.css'
+
 export const metadata = {
   title: 'NefroPlaner Badania',
   description: 'Aplikacja do planowania badań pacjentów',
