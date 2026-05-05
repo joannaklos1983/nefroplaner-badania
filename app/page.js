@@ -5,7 +5,7 @@ export default function Home() {
         <h1 className="text-3xl font-bold text-gray-900 mb-6">
           NefroPlaner Badania
         </h1>
-        
+
         <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -22,6 +22,7 @@ export default function Home() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nd</th>
               </tr>
             </thead>
+
             <tbody className="bg-white divide-y divide-gray-200">
               <tr>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">101</td>
@@ -35,6 +36,7 @@ export default function Home() {
                 <td className="px-4 py-4 text-sm text-gray-500"></td>
                 <td className="px-4 py-4 text-sm text-gray-500"></td>
               </tr>
+
               <tr>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">102</td>
                 <td className="px-4 py-4 whitespace-nowrap text-sm text-gray-900">A.N.</td>
