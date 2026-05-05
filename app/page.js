@@ -20,6 +20,10 @@ export default function Home() {
   const [otherExam, setOtherExam] = useState('')
   const [editingExam, setEditingExam] = useState(null)
 
+  // Filtry
+  const [activeFilter, setActiveFilter] = useState('wszystkie')
+  const [roomFilter, setRoomFilter] = useState('')
+
   const days = ['Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sb', 'Nd']
   
   const examsList = [
@@ -78,9 +82,51 @@ export default function Home() {
 
   const currentDay = getCurrentDay()
 
+  // Funkcja sprawdzająca czy pacjent ma badania spełniające filtr
+  const patientMatchesFilter = (patient) => {
+    // Filtr pokoju
+    if (roomFilter && !patient.room.toLowerCase().includes(roomFilter.toLowerCase())) {
+      return false
+    }
+
+    // Filtr "wszystkie" - pokaż wszystkich
+    if (activeFilter === 'wszystkie') {
+      return true
+    }
+
+    // Sprawdź czy pacjent ma jakiekolwiek badanie w którymkolwiek dniu
+    const allExams = []
+    days.forEach(day => {
+      const dayExams = patient.exams[day] || []
+      allExams.push(...dayExams)
+    })
+
+    if (allExams.length === 0) {
+      return false
+    }
+
+    // Filtry statusów
+    if (activeFilter === 'niewykonane') {
+      return allExams.some(exam => exam.status !== 'Wykonane' && exam.status !== 'Anulowane')
+    }
+    if (activeFilter === 'do przygotowania') {
+      return allExams.some(exam => exam.status === 'Do przygotowania')
+    }
+    if (activeFilter === 'wykonane') {
+      return allExams.some(exam => exam.status === 'Wykonane')
+    }
+    if (activeFilter === 'anulowane') {
+      return allExams.some(exam => exam.status === 'Anulowane')
+    }
+
+    return true
+  }
+
+  const filteredPatients = patients.filter(patientMatchesFilter)
+
   const getTodayExams = () => {
     const todayExams = []
-    patients.forEach(patient => {
+    filteredPatients.forEach(patient => {
       const exams = patient.exams[currentDay] || []
       if (exams.length > 0) {
         todayExams.push({
@@ -238,6 +284,88 @@ export default function Home() {
           </div>
         </div>
 
+        {/* Filtry */}
+        <div className="bg-white rounded-xl shadow-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold text-gray-900 mb-4">
+            Filtry
+          </h2>
+          <div className="flex flex-wrap gap-3 mb-4">
+            <button
+              onClick={() => setActiveFilter('wszystkie')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === 'wszystkie'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Wszystkie
+            </button>
+            <button
+              onClick={() => setActiveFilter('niewykonane')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === 'niewykonane'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Niewykonane
+            </button>
+            <button
+              onClick={() => setActiveFilter('do przygotowania')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === 'do przygotowania'
+                  ? 'bg-red-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ⚠️ Do przygotowania
+            </button>
+            <button
+              onClick={() => setActiveFilter('wykonane')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === 'wykonane'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Wykonane
+            </button>
+            <button
+              onClick={() => setActiveFilter('anulowane')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeFilter === 'anulowane'
+                  ? 'bg-gray-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Anulowane
+            </button>
+          </div>
+          <div className="flex gap-3 items-center">
+            <label className="text-sm font-medium text-gray-700">
+              Pokój:
+            </label>
+            <input
+              type="text"
+              value={roomFilter}
+              onChange={(e) => setRoomFilter(e.target.value)}
+              placeholder="np. 101"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-40"
+            />
+            {(activeFilter !== 'wszystkie' || roomFilter) && (
+              <button
+                onClick={() => {
+                  setActiveFilter('wszystkie')
+                  setRoomFilter('')
+                }}
+                className="px-4 py-2 text-sm bg-gray-200 hover:bg-gray-300 rounded-lg transition-colors"
+              >
+                Wyczyść filtry
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Badania na dziś */}
         <div className="bg-white rounded-xl shadow-lg p-6 mb-6 border-l-4 border-blue-600">
           <div className="flex items-center justify-between mb-4">
@@ -288,8 +416,8 @@ export default function Home() {
             </div>
           ) : (
             <div className="text-center py-8 text-gray-500">
-              <p className="text-lg">Brak zaplanowanych badań na dziś</p>
-              <p className="text-sm mt-2">Kliknij w komórkę dnia w tabeli poniżej, aby dodać badanie</p>
+              <p className="text-lg">Brak badań spełniających kryteria</p>
+              <p className="text-sm mt-2">Zmień filtry lub kliknij w komórkę dnia w tabeli, aby dodać badanie</p>
             </div>
           )}
         </div>
@@ -363,55 +491,63 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {patients.map((patient) => (
-                  <tr key={patient.id} className="hover:bg-blue-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <button
-                        onClick={() => handleDelete(patient.id)}
-                        className="text-red-600 hover:text-red-800 font-medium"
-                      >
-                        ✕
-                      </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-semibold text-gray-900">{patient.room}</span>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="font-medium text-gray-900">{patient.name}</span>
-                    </td>
-                    <td className="px-6 py-4">
-                      {patient.notes && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {patient.notes}
-                        </span>
-                      )}
-                    </td>
-                    {days.map(day => {
-                      const exams = patient.exams[day] || []
-                      const isToday = day === currentDay
-                      return (
-                        <td 
-                          key={day} 
-                          className={`px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors ${isToday ? 'bg-yellow-50' : ''}`}
-                          onClick={() => openModal(patient.id, day)}
+                {filteredPatients.length > 0 ? (
+                  filteredPatients.map((patient) => (
+                    <tr key={patient.id} className="hover:bg-blue-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <button
+                          onClick={() => handleDelete(patient.id)}
+                          className="text-red-600 hover:text-red-800 font-medium"
                         >
-                          <div className="text-sm text-gray-700 min-h-[40px] flex flex-col items-center justify-center gap-1">
-                            {exams.length > 0 ? (
-                              exams.map((exam, idx) => (
-                                <span key={idx} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(exam.status)}`}>
-                                  {exam.status === 'Do przygotowania' && <span>⚠️</span>}
-                                  {exam.name}
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-gray-400">-</span>
-                            )}
-                          </div>
-                        </td>
-                      )
-                    })}
+                          ✕
+                        </button>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-semibold text-gray-900">{patient.room}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-medium text-gray-900">{patient.name}</span>
+                      </td>
+                      <td className="px-6 py-4">
+                        {patient.notes && (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {patient.notes}
+                          </span>
+                        )}
+                      </td>
+                      {days.map(day => {
+                        const exams = patient.exams[day] || []
+                        const isToday = day === currentDay
+                        return (
+                          <td 
+                            key={day} 
+                            className={`px-6 py-4 text-center cursor-pointer hover:bg-blue-100 transition-colors ${isToday ? 'bg-yellow-50' : ''}`}
+                            onClick={() => openModal(patient.id, day)}
+                          >
+                            <div className="text-sm text-gray-700 min-h-[40px] flex flex-col items-center justify-center gap-1">
+                              {exams.length > 0 ? (
+                                exams.map((exam, idx) => (
+                                  <span key={idx} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${getStatusColor(exam.status)}`}>
+                                    {exam.status === 'Do przygotowania' && <span>⚠️</span>}
+                                    {exam.name}
+                                  </span>
+                                ))
+                              ) : (
+                                <span className="text-gray-400">-</span>
+                              )}
+                            </div>
+                          </td>
+                        )
+                      })}
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4 + days.length} className="px-6 py-8 text-center text-gray-500">
+                      Brak pacjentów spełniających kryteria filtrowania
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>
