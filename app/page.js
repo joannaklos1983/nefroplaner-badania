@@ -16,8 +16,9 @@ export default function Home() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [currentEdit, setCurrentEdit] = useState(null)
-  const [selectedExams, setSelectedExams] = useState([]) // [{ name, status }]
+  const [selectedExams, setSelectedExams] = useState([]) // [{ name, status, preparation }]
   const [otherExam, setOtherExam] = useState('')
+  const [editingExam, setEditingExam] = useState(null) // Badanie aktualnie edytowane w checkliście
 
   const days = ['Pn', 'Wt', 'Śr', 'Czw', 'Pt', 'Sb', 'Nd']
   
@@ -40,6 +41,16 @@ export default function Home() {
     'Wykonane',
     'Anulowane',
     'Do przygotowania',
+  ]
+
+  const preparationItems = [
+    'na czczo',
+    'zgoda',
+    'wenflon',
+    'kreatynina',
+    'transport',
+    'odstawienie leków',
+    'inne',
   ]
 
   const getStatusColor = (status) => {
@@ -117,9 +128,11 @@ export default function Home() {
     setCurrentEdit({ patientId, day })
     setSelectedExams(existingExams.map(exam => ({
       name: exam.name,
-      status: exam.status
+      status: exam.status,
+      preparation: exam.preparation || []
     })))
     setOtherExam('')
+    setEditingExam(null)
     setModalOpen(true)
   }
 
@@ -127,8 +140,11 @@ export default function Home() {
     const existing = selectedExams.find(e => e.name === examName)
     if (existing) {
       setSelectedExams(selectedExams.filter(e => e.name !== examName))
+      if (editingExam === examName) {
+        setEditingExam(null)
+      }
     } else {
-      setSelectedExams([...selectedExams, { name: examName, status: 'Zlecone' }])
+      setSelectedExams([...selectedExams, { name: examName, status: 'Zlecone', preparation: [] }])
     }
   }
 
@@ -138,15 +154,28 @@ export default function Home() {
     ))
   }
 
+  const togglePreparation = (examName, item) => {
+    setSelectedExams(selectedExams.map(exam => {
+      if (exam.name === examName) {
+        const prep = exam.preparation || []
+        if (prep.includes(item)) {
+          return { ...exam, preparation: prep.filter(p => p !== item) }
+        } else {
+          return { ...exam, preparation: [...prep, item] }
+        }
+      }
+      return exam
+    }))
+  }
+
   const saveExam = () => {
     if (!currentEdit) return
 
     let allExams = [...selectedExams]
     
-    // Dodaj własne badanie jeśli wpisane
     if (otherExam.trim()) {
       const customExams = otherExam.split(',').map(e => e.trim()).filter(e => e)
-      allExams = [...allExams, ...customExams.map(name => ({ name, status: 'Zlecone' }))]
+      allExams = [...allExams, ...customExams.map(name => ({ name, status: 'Zlecone', preparation: [] }))]
     }
 
     setPatients(patients.map(patient => {
@@ -170,6 +199,7 @@ export default function Home() {
     setCurrentEdit(null)
     setSelectedExams([])
     setOtherExam('')
+    setEditingExam(null)
   }
 
   return (
@@ -213,12 +243,19 @@ export default function Home() {
                     <div className="font-semibold text-gray-900 mb-2">
                       {item.name}
                     </div>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="space-y-2">
                       {item.exams.map((exam, examIdx) => (
-                        <span key={examIdx} className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(exam.status)}`}>
-                          {exam.status === 'Do przygotowania' && <span>⚠️</span>}
-                          {exam.name}
-                        </span>
+                        <div key={examIdx}>
+                          <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(exam.status)}`}>
+                            {exam.status === 'Do przygotowania' && <span>⚠️</span>}
+                            {exam.name}
+                          </span>
+                          {exam.preparation && exam.preparation.length > 0 && (
+                            <div className="mt-1 ml-4 text-xs text-gray-600">
+                              Przygotowanie: {exam.preparation.join(', ')}
+                            </div>
+                          )}
+                        </div>
                       ))}
                     </div>
                   </div>
@@ -360,15 +397,16 @@ export default function Home() {
       {/* Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">
               Badania - {currentEdit?.day}
             </h3>
             
-            {/* Lista badań z checkboxami i statusami */}
+            {/* Lista badań z checkboxami, statusami i przygotowaniem */}
             <div className="space-y-3 mb-6">
               {examsList.map(examName => {
                 const selected = selectedExams.find(e => e.name === examName)
+                const isExpanded = editingExam === examName
                 return (
                   <div key={examName} className="border border-gray-200 rounded-lg p-3">
                     <div className="flex items-center gap-3">
@@ -376,22 +414,52 @@ export default function Home() {
                         type="checkbox"
                         checked={!!selected}
                         onChange={() => toggleExam(examName)}
-                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        className="w-5 h-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500 flex-shrink-0"
                       />
                       <span className="flex-1 text-gray-700 font-medium">{examName}</span>
                       
                       {selected && (
-                        <select
-                          value={selected.status}
-                          onChange={(e) => updateExamStatus(examName, e.target.value)}
-                          className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        >
-                          {statuses.map(status => (
-                            <option key={status} value={status}>{status}</option>
-                          ))}
-                        </select>
+                        <>
+                          <select
+                            value={selected.status}
+                            onChange={(e) => updateExamStatus(examName, e.target.value)}
+                            className="px-3 py-1 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            {statuses.map(status => (
+                              <option key={status} value={status}>{status}</option>
+                            ))}
+                          </select>
+                          
+                          <button
+                            type="button"
+                            onClick={() => setEditingExam(isExpanded ? null : examName)}
+                            className="px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                          >
+                            {isExpanded ? 'Ukryj' : 'Przygotowanie'}
+                          </button>
+                        </>
                       )}
                     </div>
+                    
+                    {/* Checklista przygotowania */}
+                    {selected && isExpanded && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        <p className="text-sm font-medium text-gray-700 mb-2">Lista kontrolna przygotowania:</p>
+                        <div className="space-y-2">
+                          {preparationItems.map(item => (
+                            <label key={item} className="flex items-center gap-2 text-sm hover:bg-gray-50 p-2 rounded cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={selected.preparation?.includes(item) || false}
+                                onChange={() => togglePreparation(examName, item)}
+                                className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                              <span className="text-gray-700">{item}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
               })}
@@ -434,4 +502,5 @@ export default function Home() {
       )}
     </main>
   )
+}
 }
