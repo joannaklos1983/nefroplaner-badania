@@ -36,6 +36,14 @@ export default function Home() {
     return `${day}.${month}`;
   };
 
+  const formatMonthYear = (date) => {
+    const monthNames = [
+      'Styczeń', 'Luty', 'Marzec', 'Kwiecień', 'Maj', 'Czerwiec',
+      'Lipiec', 'Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'
+    ];
+    return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+  };
+
   const formatWeekRange = (startDate) => {
     const start = new Date(startDate);
     const end = new Date(start);
@@ -65,6 +73,10 @@ export default function Home() {
   };
 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const today = new Date();
+    return new Date(today.getFullYear(), today.getMonth(), 1);
+  });
   
   // Funkcja do wczytania danych z localStorage
   const loadPatientsFromStorage = () => {
@@ -140,6 +152,49 @@ export default function Home() {
     });
   }, [currentWeekStart]);
 
+  // Generuj dni kalendarzowe dla widoku miesięcznego
+  const monthDays = useMemo(() => {
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    const firstDayOfWeek = firstDay.getDay();
+    const startOffset = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1;
+    
+    const calendarStart = new Date(firstDay);
+    calendarStart.setDate(calendarStart.getDate() - startOffset);
+    
+    const days = [];
+    for (let i = 0; i < 42; i++) {
+      const date = new Date(calendarStart);
+      date.setDate(calendarStart.getDate() + i);
+      days.push(date);
+    }
+    
+    return days;
+  }, [currentMonth]);
+
+  // Funkcja do liczenia badań dla danego dnia
+  const getDayExamsStats = (date) => {
+    const dateKey = getDateKey(date);
+    let total = 0;
+    let urgent = 0;
+    let deadline = 0;
+    
+    patients.forEach(patient => {
+      const dayExams = patient.exams[dateKey] || [];
+      total += dayExams.length;
+      dayExams.forEach(exam => {
+        if (exam.priority === 'pilne') urgent++;
+        if (exam.priority === 'do dnia') deadline++;
+      });
+    });
+    
+    return { total, urgent, deadline };
+  };
+
   const examTypes = [
     'USG', 'TK', 'Angio-TK', 'MR', 'RTG', 'Echo', 'EKG',
     'konsultacja', 'laboratorium', 'biopsja', 'inne'
@@ -163,6 +218,28 @@ export default function Home() {
     const newStart = new Date(currentWeekStart);
     newStart.setDate(newStart.getDate() + 7);
     setCurrentWeekStart(newStart);
+  };
+
+  const goToPreviousMonth = () => {
+    const newMonth = new Date(currentMonth);
+    newMonth.setMonth(newMonth.getMonth() - 1);
+    setCurrentMonth(newMonth);
+  };
+
+  const goToCurrentMonth = () => {
+    const today = new Date();
+    setCurrentMonth(new Date(today.getFullYear(), today.getMonth(), 1));
+  };
+
+  const goToNextMonth = () => {
+    const newMonth = new Date(currentMonth);
+    newMonth.setMonth(newMonth.getMonth() + 1);
+    setCurrentMonth(newMonth);
+  };
+
+  const handleDayClick = (date) => {
+    setCurrentWeekStart(getWeekStart(date));
+    setCurrentView('week');
   };
 
   const handleAddPatient = () => {
@@ -507,6 +584,16 @@ export default function Home() {
             >
               Dzisiaj
             </button>
+            <button
+              onClick={() => setCurrentView('month')}
+              className={`px-4 py-2 rounded ${
+                currentView === 'month'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-700'
+              }`}
+            >
+              Miesiąc
+            </button>
           </div>
 
           {currentView === 'week' && (
@@ -534,6 +621,36 @@ export default function Home() {
                   className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
                 >
                   Następny tydzień →
+                </button>
+              </div>
+            </div>
+          )}
+
+          {currentView === 'month' && (
+            <div className="mb-4 flex items-center justify-between bg-gray-100 p-4 rounded">
+              <button
+                onClick={goToPreviousMonth}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                ← Poprzedni miesiąc
+              </button>
+              <div className="text-center">
+                <div className="text-lg font-semibold">
+                  {formatMonthYear(currentMonth)}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={goToCurrentMonth}
+                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                >
+                  Bieżący miesiąc
+                </button>
+                <button
+                  onClick={goToNextMonth}
+                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                >
+                  Następny miesiąc →
                 </button>
               </div>
             </div>
@@ -580,6 +697,54 @@ export default function Home() {
                 >
                   Wyczyść filtry
                 </button>
+              </div>
+            </div>
+          )}
+
+          {currentView === 'month' && (
+            <div className="mb-4">
+              <div className="grid grid-cols-7 gap-2">
+                {dayNames.map(day => (
+                  <div key={day} className="text-center font-semibold text-sm p-2 bg-gray-100">
+                    {day}
+                  </div>
+                ))}
+                {monthDays.map((date, index) => {
+                  const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
+                  const isToday = getDateKey(date) === getDateKey(new Date());
+                  const stats = getDayExamsStats(date);
+                  
+                  return (
+                    <div
+                      key={index}
+                      onClick={() => handleDayClick(date)}
+                      className={`min-h-[100px] p-2 border rounded cursor-pointer hover:bg-blue-50 ${
+                        !isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'
+                      } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                    >
+                      <div className="font-semibold text-sm mb-2">
+                        {date.getDate()}
+                      </div>
+                      {stats.total > 0 && (
+                        <div className="space-y-1 text-xs">
+                          <div className="text-gray-700">
+                            Badań: {stats.total}
+                          </div>
+                          {stats.urgent > 0 && (
+                            <div className="text-red-600">
+                              🔴 Pilne: {stats.urgent}
+                            </div>
+                          )}
+                          {stats.deadline > 0 && (
+                            <div className="text-orange-600">
+                              ⏰ Do dnia: {stats.deadline}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
