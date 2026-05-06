@@ -242,7 +242,7 @@ export default function Home() {
       timeOfDay: '',
       checklist: [],
       otherPreparation: '',
-      createdBy: currentExamForm.createdBy // Zachowaj createdBy dla kolejnych badań
+      createdBy: currentExamForm.createdBy
     });
   };
 
@@ -301,7 +301,6 @@ export default function Home() {
                     checklist: currentExamForm.checklist,
                     otherPreparation: currentExamForm.otherPreparation,
                     createdBy: currentExamForm.createdBy
-                    // createdAt nie zmieniamy - pozostaje oryginalne
                   }
                 : e
             )
@@ -390,7 +389,7 @@ export default function Home() {
         patient: patient.initials,
         room: patient.room,
         dateKey: todayKey,
-        date: today, // Dodajemy obiekt daty
+        date: today,
         patientId: patient.id
       }));
     });
@@ -433,7 +432,6 @@ export default function Home() {
             NefroPlaner Badania
           </h1>
 
-          {/* Przyciski widoków */}
           <div className="flex gap-4 mb-6">
             <button
               onClick={() => setCurrentView('week')}
@@ -457,7 +455,6 @@ export default function Home() {
             </button>
           </div>
 
-          {/* Nawigacja tygodniowa */}
           {currentView === 'week' && (
             <div className="mb-4 flex items-center justify-between bg-gray-100 p-4 rounded">
               <button
@@ -488,7 +485,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Filtry */}
           {currentView === 'week' && (
             <div className="mb-6 p-4 bg-gray-100 rounded">
               <h3 className="font-semibold mb-3">Filtry:</h3>
@@ -534,7 +530,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Widok tygodniowy */}
           {currentView === 'week' && (
             <>
               <button
@@ -606,7 +601,7 @@ export default function Home() {
                                     title="Kliknij, aby edytować badanie"
                                   >
                                     <div className="flex justify-between items-start mb-1">
-                                      <span className="font-semibold">
+                                      <span className="font-semibold text-sm">
                                         {getPriorityBadge(exam.priority)} {exam.type}
                                         {exam.status === 'Przygotowanie' && ' ⚠️'}
                                       </span>
@@ -615,7 +610,7 @@ export default function Home() {
                                           e.stopPropagation();
                                           handleDeleteExam(patient.id, date, exam.id);
                                         }}
-                                        className="text-red-600 hover:text-red-800 ml-1"
+                                        className="text-red-600 hover:text-red-800 ml-1 text-base leading-none"
                                         title="Usuń badanie"
                                       >
                                         ×
@@ -631,14 +626,14 @@ export default function Home() {
                                         ✓ {formatChecklist(exam.checklist, exam.otherPreparation)}
                                       </div>
                                     )}
-                                    {exam.createdAt && (
-                                      <div className="text-xs opacity-60 mt-1 italic">
-                                        zlecono: {formatDateTime(exam.createdAt)}
-                                      </div>
-                                    )}
-                                    {exam.createdBy && (
-                                      <div className="text-xs opacity-60 italic">
-                                        dodał: {exam.createdBy}
+                                    {(exam.createdAt || exam.createdBy) && (
+                                      <div className="text-[10px] opacity-60 mt-2 pt-1 border-t border-gray-300 space-y-0.5">
+                                        {exam.createdAt && (
+                                          <div>zlecono: {formatDateTime(exam.createdAt)}</div>
+                                        )}
+                                        {exam.createdBy && (
+                                          <div>dodał: {exam.createdBy}</div>
+                                        )}
                                       </div>
                                     )}
                                   </div>
@@ -655,7 +650,6 @@ export default function Home() {
             </>
           )}
 
-          {/* Widok "Dzisiaj" */}
           {currentView === 'today' && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Badania na dziś</h2>
@@ -718,7 +712,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Modal dodawania/edycji pacjenta */}
       {(showAddPatient || editingPatient) && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg p-6 max-w-md w-full">
@@ -775,7 +768,6 @@ export default function Home() {
         </div>
       )}
 
-      {/* Modal dodawania/edycji badań */}
       {examModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
