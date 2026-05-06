@@ -21,7 +21,8 @@ export default function Home() {
     status: 'Zlecone',
     priority: 'standard',
     timeOfDay: '',
-    checklist: []
+    checklist: [],
+    otherPreparation: ''
   });
 
   const [currentView, setCurrentView] = useState('week');
@@ -41,6 +42,18 @@ export default function Home() {
     'na czczo', 'zgoda', 'wenflon', 'kreatynina', 
     'transport', 'odstawienie leków', 'inne'
   ];
+
+  const resetExamForm = () => {
+    setCurrentExamForm({
+      type: '',
+      customType: '',
+      status: 'Zlecone',
+      priority: 'standard',
+      timeOfDay: '',
+      checklist: [],
+      otherPreparation: ''
+    });
+  };
 
   const handleAddPatient = () => {
     if (newPatient.room && newPatient.initials) {
@@ -96,14 +109,7 @@ export default function Home() {
     setExamModal({ patientId, day });
     setEditingExam(null);
     setExamList([]);
-    setCurrentExamForm({
-      type: '',
-      customType: '',
-      status: 'Zlecone',
-      priority: 'standard',
-      timeOfDay: '',
-      checklist: []
-    });
+    resetExamForm();
   };
 
   const openEditExam = (patientId, day, exam) => {
@@ -117,12 +123,18 @@ export default function Home() {
       status: exam.status,
       priority: exam.priority,
       timeOfDay: exam.timeOfDay,
-      checklist: exam.checklist
+      checklist: exam.checklist || [],
+      otherPreparation: exam.otherPreparation || ''
     });
   };
 
   const addToExamList = () => {
+    if (currentExamForm.type === 'inne' && !currentExamForm.customType.trim()) {
+      alert('Proszę wpisać nazwę badania');
+      return;
+    }
     if (!currentExamForm.type && !currentExamForm.customType) return;
+
     const examType = currentExamForm.type === 'inne' ? currentExamForm.customType : currentExamForm.type;
     setExamList([
       ...examList,
@@ -132,17 +144,11 @@ export default function Home() {
         status: currentExamForm.status,
         priority: currentExamForm.priority,
         timeOfDay: currentExamForm.timeOfDay,
-        checklist: currentExamForm.checklist
+        checklist: currentExamForm.checklist,
+        otherPreparation: currentExamForm.otherPreparation
       }
     ]);
-    setCurrentExamForm({
-      type: '',
-      customType: '',
-      status: 'Zlecone',
-      priority: 'standard',
-      timeOfDay: '',
-      checklist: []
-    });
+    resetExamForm();
   };
 
   const removeFromExamList = (examId) => {
@@ -169,7 +175,12 @@ export default function Home() {
   };
 
   const saveEditedExam = () => {
+    if (currentExamForm.type === 'inne' && !currentExamForm.customType.trim()) {
+      alert('Proszę wpisać nazwę badania');
+      return;
+    }
     if (!currentExamForm.type && !currentExamForm.customType) return;
+
     const examType = currentExamForm.type === 'inne' ? currentExamForm.customType : currentExamForm.type;
     setPatients(patients.map(p => {
       if (p.id === examModal.patientId) {
@@ -185,7 +196,8 @@ export default function Home() {
                     status: currentExamForm.status,
                     priority: currentExamForm.priority,
                     timeOfDay: currentExamForm.timeOfDay,
-                    checklist: currentExamForm.checklist
+                    checklist: currentExamForm.checklist,
+                    otherPreparation: currentExamForm.otherPreparation
                   }
                 : e
             )
@@ -216,11 +228,14 @@ export default function Home() {
   };
 
   const toggleChecklist = (item) => {
+    const newChecklist = currentExamForm.checklist.includes(item)
+      ? currentExamForm.checklist.filter(i => i !== item)
+      : [...currentExamForm.checklist, item];
+
     setCurrentExamForm({
       ...currentExamForm,
-      checklist: currentExamForm.checklist.includes(item)
-        ? currentExamForm.checklist.filter(i => i !== item)
-        : [...currentExamForm.checklist, item]
+      checklist: newChecklist,
+      otherPreparation: item === 'inne' && !newChecklist.includes('inne') ? '' : currentExamForm.otherPreparation
     });
   };
 
@@ -238,6 +253,14 @@ export default function Home() {
     if (priority === 'pilne') return '🔴';
     if (priority === 'do dnia') return '⏰';
     return '';
+  };
+
+  const formatChecklist = (checklist, otherPreparation) => {
+    if (!checklist || checklist.length === 0) return '';
+    return checklist.map(item => {
+      if (item === 'inne' && otherPreparation) return `inne: ${otherPreparation}`;
+      return item;
+    }).join(', ');
   };
 
   const getTodayExams = () => {
@@ -330,16 +353,16 @@ export default function Home() {
                         <td className="border p-2 text-center font-semibold">{patient.initials}</td>
                         <td className="border p-2 text-sm text-gray-600">{patient.notes}</td>
                         {days.map(day => (
-                          <td key={day} className="border p-2 cursor-pointer hover:bg-blue-50" onClick={() => openExamModal(patient.id, day)}>
+                          <td key={day} className="border p-2 cursor-pointer hover:bg-blue-50" onClick={() => openExamModal(patient.id, day)} title="Kliknij, aby dodać badanie">
                             <div className="space-y-1">
                               {(patient.exams[day] || []).map(exam => (
-                                <div key={exam.id} className={`text-xs p-1 rounded ${getStatusColor(exam.status)} cursor-pointer hover:opacity-80`} onClick={(e) => { e.stopPropagation(); openEditExam(patient.id, day, exam); }}>
+                                <div key={exam.id} className={`text-xs p-1 rounded ${getStatusColor(exam.status)} cursor-pointer hover:opacity-80`} onClick={(e) => { e.stopPropagation(); openEditExam(patient.id, day, exam); }} title="Kliknij, aby edytować badanie">
                                   <div className="flex justify-between items-start">
                                     <span className="font-semibold">{getPriorityBadge(exam.priority)} {exam.type}{exam.status === 'Przygotowanie' && ' ⚠️'}</span>
-                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteExam(patient.id, day, exam.id); }} className="text-red-600 hover:text-red-800 ml-1">×</button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDeleteExam(patient.id, day, exam.id); }} className="text-red-600 hover:text-red-800 ml-1" title="Usuń badanie">×</button>
                                   </div>
                                   {exam.timeOfDay && <div className="text-xs opacity-75 mt-1">{exam.timeOfDay}</div>}
-                                  {exam.checklist.length > 0 && <div className="text-xs opacity-75 mt-1">✓ {exam.checklist.join(', ')}</div>}
+                                  {exam.checklist?.length > 0 && <div className="text-xs opacity-75 mt-1">✓ {formatChecklist(exam.checklist, exam.otherPreparation)}</div>}
                                 </div>
                               ))}
                             </div>
@@ -358,13 +381,13 @@ export default function Home() {
               <h2 className="text-2xl font-bold mb-4">Badania na dziś</h2>
               <div className="space-y-2">
                 {getTodayExams().length === 0 ? <p className="text-gray-500">Brak badań zaplanowanych na dziś</p> : getTodayExams().map(exam => (
-                  <div key={exam.id} className={`p-4 rounded-lg ${getStatusColor(exam.status)} cursor-pointer hover:opacity-90`} onClick={() => openEditExam(exam.patientId, exam.day, exam)}>
+                  <div key={exam.id} className={`p-4 rounded-lg ${getStatusColor(exam.status)} cursor-pointer hover:opacity-90`} onClick={() => openEditExam(exam.patientId, exam.day, exam)} title="Kliknij, aby edytować badanie">
                     <div className="flex justify-between items-start">
                       <div>
                         <div className="font-bold text-lg">{getPriorityBadge(exam.priority)} {exam.type}{exam.status === 'Przygotowanie' && ' ⚠️'}</div>
                         <div className="text-sm mt-1">Pacjent: {exam.patient} | Pokój: {exam.room}</div>
                         {exam.timeOfDay && <div className="text-sm mt-1">Pora: {exam.timeOfDay}</div>}
-                        {exam.checklist.length > 0 && <div className="text-sm mt-2"><strong>Do przygotowania:</strong><ul className="list-disc list-inside mt-1">{exam.checklist.map((item, i) => <li key={i}>{item}</li>)}</ul></div>}
+                        {exam.checklist?.length > 0 && <div className="text-sm mt-2"><strong>Do przygotowania:</strong><ul className="list-disc list-inside mt-1">{exam.checklist.map((item, i) => <li key={i}>{item === 'inne' && exam.otherPreparation ? `inne: ${exam.otherPreparation}` : item}</li>)}</ul></div>}
                       </div>
                       <div className="text-sm font-semibold">{exam.status}</div>
                     </div>
@@ -396,7 +419,8 @@ export default function Home() {
       {examModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto z-50">
           <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
-            <h2 className="text-xl font-bold mb-4">{editingExam ? `Edytuj badanie - ${examModal.day}` : `Dodaj badania - ${examModal.day}`}</h2>
+            <h2 className="text-xl font-bold mb-2">{editingExam ? `Edytuj badanie - ${examModal.day}` : `Dodaj badania - ${examModal.day}`}</h2>
+            <p className="text-sm text-gray-600 mb-4">{editingExam ? 'Zmień status lub szczegóły badania i kliknij Zapisz zmiany.' : 'Wybierz badanie, ustaw szczegóły i kliknij + Dodaj do listy. Na końcu zapisz wszystkie badania.'}</p>
             <div className="space-y-4 border-b pb-4 mb-4">
               <div>
                 <label className="block text-sm font-semibold mb-2">Rodzaj badania:</label>
@@ -405,7 +429,7 @@ export default function Home() {
                   {examTypes.map(type => <option key={type} value={type}>{type}</option>)}
                 </select>
               </div>
-              {currentExamForm.type === 'inne' && <div><label className="block text-sm font-semibold mb-2">Własne badanie:</label><input type="text" value={currentExamForm.customType} onChange={(e) => setCurrentExamForm({...currentExamForm, customType: e.target.value})} className="w-full border rounded px-3 py-2" placeholder="Wpisz nazwę badania" /></div>}
+              {currentExamForm.type === 'inne' && <div><label className="block text-sm font-semibold mb-2">Własne badanie:</label><input type="text" value={currentExamForm.customType} onChange={(e) => setCurrentExamForm({...currentExamForm, customType: e.target.value})} className="w-full border rounded px-3 py-2" placeholder="Wpisz nazwę badania" />{!currentExamForm.customType.trim() && <p className="text-xs text-red-600 mt-1">Nazwa badania jest wymagana</p>}</div>}
               <div className="grid grid-cols-2 gap-4">
                 <div><label className="block text-sm font-semibold mb-2">Status:</label><select value={currentExamForm.status} onChange={(e) => setCurrentExamForm({...currentExamForm, status: e.target.value})} className="w-full border rounded px-3 py-2"><option value="Zlecone">Zlecone</option><option value="W trakcie">W trakcie</option><option value="Wykonane">Wykonane</option><option value="Przygotowanie">Przygotowanie</option></select></div>
                 <div><label className="block text-sm font-semibold mb-2">Priorytet:</label><select value={currentExamForm.priority} onChange={(e) => setCurrentExamForm({...currentExamForm, priority: e.target.value})} className="w-full border rounded px-3 py-2"><option value="standard">Standard</option><option value="pilne">Pilne</option><option value="do dnia">Do dnia</option></select></div>
@@ -414,13 +438,14 @@ export default function Home() {
               <div>
                 <label className="block text-sm font-semibold mb-2">Lista kontrolna przygotowania:</label>
                 <div className="grid grid-cols-2 gap-2">{checklistOptions.map(option => <label key={option} className="flex items-center gap-2"><input type="checkbox" checked={currentExamForm.checklist.includes(option)} onChange={() => toggleChecklist(option)} /><span className="text-sm">{option}</span></label>)}</div>
+                {currentExamForm.checklist.includes('inne') && <div className="mt-3"><label className="block text-sm font-semibold mb-2">Opisz inne przygotowanie:</label><input type="text" value={currentExamForm.otherPreparation} onChange={(e) => setCurrentExamForm({...currentExamForm, otherPreparation: e.target.value})} className="w-full border rounded px-3 py-2" placeholder="np. podpisać zgodę od rodziny" /></div>}
               </div>
               {!editingExam && <button onClick={addToExamList} className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700">+ Dodaj do listy</button>}
             </div>
             {!editingExam && examList.length > 0 && (
               <div className="mb-4">
                 <h3 className="font-semibold mb-2">Badania do dodania:</h3>
-                <div className="space-y-2">{examList.map(exam => <div key={exam.id} className={`p-2 rounded flex justify-between items-center ${getStatusColor(exam.status)}`}><div><div className="font-semibold text-sm">{getPriorityBadge(exam.priority)} {exam.type}</div><div className="text-xs">{exam.status} | {exam.priority}{exam.timeOfDay && ` | ${exam.timeOfDay}`}</div></div><button onClick={() => removeFromExamList(exam.id)} className="text-red-600 hover:text-red-800 font-bold">×</button></div>)}</div>
+                <div className="space-y-2">{examList.map(exam => <div key={exam.id} className={`p-3 rounded ${getStatusColor(exam.status)}`}><div className="flex justify-between items-start"><div className="flex-1"><div className="font-semibold text-sm mb-1">{getPriorityBadge(exam.priority)} {exam.type}</div><div className="text-xs space-y-1"><div>Status: {exam.status} | Priorytet: {exam.priority}</div>{exam.timeOfDay && <div>Pora: {exam.timeOfDay}</div>}{exam.checklist.length > 0 && <div>Przygotowanie: {formatChecklist(exam.checklist, exam.otherPreparation)}</div>}</div></div><button onClick={() => removeFromExamList(exam.id)} className="text-red-600 hover:text-red-800 font-bold ml-2" title="Usuń z listy">×</button></div></div>)}</div>
               </div>
             )}
             <div className="flex gap-2">
