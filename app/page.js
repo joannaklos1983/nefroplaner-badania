@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 
 export default function Home() {
   // Funkcje pomocnicze do zarządzania datami
@@ -58,10 +58,42 @@ export default function Home() {
 
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
   
-  const [patients, setPatients] = useState([
+  // Funkcja do wczytania danych z localStorage
+  const loadPatientsFromStorage = () => {
+    if (typeof window === 'undefined') return null;
+    
+    try {
+      const stored = localStorage.getItem('nefroPlaner_patients');
+      if (stored) {
+        return JSON.parse(stored);
+      }
+    } catch (error) {
+      console.error('Błąd wczytywania danych:', error);
+    }
+    return null;
+  };
+
+  // Domyślni pacjenci (jeśli brak danych w localStorage)
+  const defaultPatients = [
     { id: 1, room: '101', initials: 'JK', notes: 'Dializa Pn/Śr/Pt', exams: {} },
     { id: 2, room: '102', initials: 'AM', notes: '', exams: {} },
-  ]);
+  ];
+
+  const [patients, setPatients] = useState(() => {
+    const stored = loadPatientsFromStorage();
+    return stored || defaultPatients;
+  });
+
+  // Zapisz do localStorage przy każdej zmianie patients
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('nefroPlaner_patients', JSON.stringify(patients));
+      } catch (error) {
+        console.error('Błąd zapisywania danych:', error);
+      }
+    }
+  }, [patients]);
 
   const [showAddPatient, setShowAddPatient] = useState(false);
   const [editingPatient, setEditingPatient] = useState(null);
