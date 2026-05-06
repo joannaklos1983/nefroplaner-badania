@@ -28,6 +28,14 @@ export default function Home() {
     return `${day}.${month}, ${hours}:${minutes}`;
   };
 
+  const formatDeadlineDate = (dateString) => {
+    if (!dateString) return '';
+    const d = new Date(dateString);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    return `${day}.${month}`;
+  };
+
   const formatWeekRange = (startDate) => {
     const start = new Date(startDate);
     const end = new Date(start);
@@ -110,7 +118,8 @@ export default function Home() {
     timeOfDay: '',
     checklist: [],
     otherPreparation: '',
-    createdBy: ''
+    createdBy: '',
+    deadlineDate: ''
   });
 
   const [currentView, setCurrentView] = useState('week');
@@ -218,7 +227,8 @@ export default function Home() {
       timeOfDay: '',
       checklist: [],
       otherPreparation: '',
-      createdBy: ''
+      createdBy: '',
+      deadlineDate: ''
     });
   };
 
@@ -237,7 +247,8 @@ export default function Home() {
       timeOfDay: exam.timeOfDay || '',
       checklist: exam.checklist || [],
       otherPreparation: exam.otherPreparation || '',
-      createdBy: exam.createdBy || ''
+      createdBy: exam.createdBy || '',
+      deadlineDate: exam.deadlineDate || ''
     });
   };
 
@@ -262,7 +273,8 @@ export default function Home() {
         checklist: currentExamForm.checklist,
         otherPreparation: currentExamForm.otherPreparation,
         createdBy: currentExamForm.createdBy,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        deadlineDate: currentExamForm.deadlineDate
       }
     ]);
 
@@ -274,7 +286,8 @@ export default function Home() {
       timeOfDay: '',
       checklist: [],
       otherPreparation: '',
-      createdBy: currentExamForm.createdBy
+      createdBy: currentExamForm.createdBy,
+      deadlineDate: ''
     });
   };
 
@@ -332,7 +345,8 @@ export default function Home() {
                     timeOfDay: currentExamForm.timeOfDay,
                     checklist: currentExamForm.checklist,
                     otherPreparation: currentExamForm.otherPreparation,
-                    createdBy: currentExamForm.createdBy
+                    createdBy: currentExamForm.createdBy,
+                    deadlineDate: currentExamForm.deadlineDate
                   }
                 : e
             )
@@ -381,6 +395,14 @@ export default function Home() {
         checklist: newChecklist
       });
     }
+  };
+
+  const handlePriorityChange = (newPriority) => {
+    setCurrentExamForm({
+      ...currentExamForm,
+      priority: newPriority,
+      deadlineDate: newPriority === 'do dnia' ? currentExamForm.deadlineDate : ''
+    });
   };
 
   const getStatusColor = (status) => {
@@ -648,6 +670,11 @@ export default function Home() {
                                         ×
                                       </button>
                                     </div>
+                                    {exam.priority === 'do dnia' && exam.deadlineDate && (
+                                      <div className="text-xs opacity-75 mt-1">
+                                        do dnia: {formatDeadlineDate(exam.deadlineDate)}
+                                      </div>
+                                    )}
                                     {exam.timeOfDay && (
                                       <div className="text-xs opacity-75 mt-1">
                                         {exam.timeOfDay}
@@ -705,6 +732,11 @@ export default function Home() {
                           <div className="text-sm mt-1">
                             Pacjent: {exam.patient} | Pokój: {exam.room}
                           </div>
+                          {exam.priority === 'do dnia' && exam.deadlineDate && (
+                            <div className="text-sm mt-1">
+                              Do dnia: {formatDeadlineDate(exam.deadlineDate)}
+                            </div>
+                          )}
                           {exam.timeOfDay && (
                             <div className="text-sm mt-1">Pora: {exam.timeOfDay}</div>
                           )}
@@ -866,7 +898,7 @@ export default function Home() {
                   <label className="block text-sm font-semibold mb-2">Priorytet:</label>
                   <select
                     value={currentExamForm.priority}
-                    onChange={(e) => setCurrentExamForm({...currentExamForm, priority: e.target.value})}
+                    onChange={(e) => handlePriorityChange(e.target.value)}
                     className="w-full border rounded px-3 py-2"
                   >
                     <option value="standard">Standard</option>
@@ -875,6 +907,18 @@ export default function Home() {
                   </select>
                 </div>
               </div>
+
+              {currentExamForm.priority === 'do dnia' && (
+                <div>
+                  <label className="block text-sm font-semibold mb-2">Termin wykonania do dnia:</label>
+                  <input
+                    type="date"
+                    value={currentExamForm.deadlineDate}
+                    onChange={(e) => setCurrentExamForm({...currentExamForm, deadlineDate: e.target.value})}
+                    className="w-full border rounded px-3 py-2"
+                  />
+                </div>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold mb-2">Pora dnia:</label>
@@ -955,6 +999,9 @@ export default function Home() {
                           </div>
                           <div className="text-xs space-y-1">
                             <div>Status: {exam.status} | Priorytet: {exam.priority}</div>
+                            {exam.priority === 'do dnia' && exam.deadlineDate && (
+                              <div>Do dnia: {formatDeadlineDate(exam.deadlineDate)}</div>
+                            )}
                             {exam.timeOfDay && <div>Pora: {exam.timeOfDay}</div>}
                             {exam.checklist?.length > 0 && (
                               <div>Przygotowanie: {formatChecklist(exam.checklist, exam.otherPreparation)}</div>
