@@ -303,8 +303,8 @@ export default function Home() {
   };
 
   const handleDayClick = (date) => {
-    setCurrentWeekStart(getWeekStart(date));
-    setCurrentView('week');
+  setCurrentWeekStart(getWeekStart(date));
+  setCurrentView('today');
   };
 
   const handleAddPatient = () => {
