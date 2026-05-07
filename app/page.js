@@ -72,6 +72,20 @@ export default function Home() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
+  // NOWA FUNKCJA: Sprawdza czy badanie jest zaległe
+  const isExamOverdue = (exam) => {
+    if (exam.priority !== 'badanie z terminem') return false;
+    if (!exam.deadlineDate) return false;
+    if (exam.status === 'Wykonane') return false;
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const deadline = new Date(exam.deadlineDate);
+    deadline.setHours(0, 0, 0, 0);
+    
+    return deadline < today;
+  };
+
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
   const [currentMonth, setCurrentMonth] = useState(() => {
     const today = new Date();
@@ -139,6 +153,7 @@ export default function Home() {
     incomplete: false,
     preparation: false,
     urgent: false,
+    overdue: false,
     room: ''
   });
 
@@ -207,7 +222,7 @@ export default function Home() {
       total += dayExams.length;
       dayExams.forEach(exam => {
         if (exam.priority === 'pilne') urgent++;
-        if (exam.priority === 'do dnia') deadline++;
+        if (exam.priority === 'badanie z terminem') deadline++;
       });
     });
     
@@ -511,7 +526,7 @@ export default function Home() {
     setCurrentExamForm({
       ...currentExamForm,
       priority: newPriority,
-      deadlineDate: newPriority === 'do dnia' ? currentExamForm.deadlineDate : ''
+      deadlineDate: newPriority === 'badanie z terminem' ? currentExamForm.deadlineDate : ''
     });
   };
 
@@ -527,7 +542,7 @@ export default function Home() {
 
   const getPriorityBadge = (priority) => {
     if (priority === 'pilne') return '🔴';
-    if (priority === 'do dnia') return '⏰';
+    if (priority === 'badanie z terminem') return '⏰';
     return '';
   };
 
@@ -559,17 +574,42 @@ export default function Home() {
     });
   };
 
-  // NOWA FUNKCJA: Oblicz statystyki dla widoku "Dzisiaj"
+  // NOWA FUNKCJA: Pobierz wszystkie zaległe badania
+  const getOverdueExams = () => {
+    const allExams = [];
+    
+    patients.forEach(patient => {
+      Object.entries(patient.exams).forEach(([dateKey, dayExams]) => {
+        dayExams.forEach(exam => {
+          if (isExamOverdue(exam)) {
+            allExams.push({
+              ...exam,
+              patient: patient.initials,
+              room: patient.room,
+              dateKey: dateKey,
+              date: new Date(dateKey),
+              patientId: patient.id
+            });
+          }
+        });
+      });
+    });
+    
+    return allExams;
+  };
+
+  // Oblicz statystyki dla widoku "Dzisiaj"
   const getTodayStats = () => {
     const todayExams = getTodayExams();
     
     return {
       total: todayExams.length,
       urgent: todayExams.filter(e => e.priority === 'pilne').length,
-      deadline: todayExams.filter(e => e.priority === 'do dnia').length,
+      deadline: todayExams.filter(e => e.priority === 'badanie z terminem').length,
       preparation: todayExams.filter(e => e.status === 'Przygotowanie').length,
       completed: todayExams.filter(e => e.status === 'Wykonane').length,
-      incomplete: todayExams.filter(e => e.status !== 'Wykonane').length
+      incomplete: todayExams.filter(e => e.status !== 'Wykonane').length,
+      overdue: todayExams.filter(e => isExamOverdue(e)).length
     };
   };
 
@@ -577,7 +617,7 @@ export default function Home() {
     return patients.filter(patient => {
       if (filters.room && !patient.room.includes(filters.room)) return false;
       
-      if (filters.incomplete || filters.preparation || filters.urgent) {
+      if (filters.incomplete || filters.preparation || filters.urgent || filters.overdue) {
         const allExams = Object.values(patient.exams).flat();
         
         if (allExams.length === 0) return false;
@@ -595,6 +635,11 @@ export default function Home() {
         if (filters.urgent) {
           const hasUrgent = allExams.some(exam => exam.priority === 'pilne');
           if (!hasUrgent) return false;
+        }
+
+        if (filters.overdue) {
+          const hasOverdue = allExams.some(exam => isExamOverdue(exam));
+          if (!hasOverdue) return false;
         }
       }
 
@@ -731,6 +776,14 @@ export default function Home() {
                   />
                   Pilne
                 </label>
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={filters.overdue}
+                    onChange={(e) => setFilters({...filters, overdue: e.target.checked})}
+                  />
+                  Zaległe
+                </label>
                 <input
                   type="text"
                   placeholder="Numer pokoju"
@@ -739,7 +792,7 @@ export default function Home() {
                   className="px-3 py-1 border rounded"
                 />
                 <button
-                  onClick={() => setFilters({incomplete: false, preparation: false, urgent: false, room: ''})}
+                  onClick={() => setFilters({incomplete: false, preparation: false, urgent: false, overdue: false, room: ''})}
                   className="px-3 py-1 bg-gray-300 rounded text-sm"
                 >
                   Wyczyść filtry
@@ -805,7 +858,7 @@ export default function Home() {
                           )}
                           {stats.deadline > 0 && (
                             <div className="text-orange-600">
-                              ⏰ Do dnia: {stats.deadline}
+                              ⏰ Badanie z terminem: {stats.deadline}
                             </div>
                           )}
                         </div>
@@ -877,59 +930,70 @@ export default function Home() {
                               title="Kliknij, aby dodać badanie"
                             >
                               <div className="space-y-2">
-                                {dayExams.map(exam => (
-                                  <div
-                                    key={exam.id}
-                                    className={`text-xs p-2 rounded ${getStatusColor(exam.status)} cursor-pointer hover:opacity-80`}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      openEditExam(patient.id, date, exam);
-                                    }}
-                                    title="Kliknij, aby edytować badanie"
-                                  >
-                                    <div className="flex justify-between items-start mb-1">
-                                      <span className="font-semibold text-sm">
-                                        {getPriorityBadge(exam.priority)} {exam.type}
-                                        {exam.status === 'Przygotowanie' && ' ⚠️'}
-                                      </span>
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDeleteExam(patient.id, date, exam.id);
-                                        }}
-                                        className="text-red-600 hover:text-red-800 ml-1 text-base leading-none"
-                                        title="Usuń badanie"
-                                      >
-                                        ×
-                                      </button>
+                                {dayExams.map(exam => {
+                                  const overdue = isExamOverdue(exam);
+                                  
+                                  return (
+                                    <div
+                                      key={exam.id}
+                                      className={`text-xs p-2 rounded ${getStatusColor(exam.status)} cursor-pointer hover:opacity-80 ${
+                                        overdue ? 'ring-2 ring-red-600' : ''
+                                      }`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        openEditExam(patient.id, date, exam);
+                                      }}
+                                      title="Kliknij, aby edytować badanie"
+                                    >
+                                      {overdue && (
+                                        <div className="text-red-700 font-bold text-xs mb-1">
+                                          ⚠️ TERMIN MINĄŁ
+                                        </div>
+                                      )}
+                                      <div className="flex justify-between items-start mb-1">
+                                        <span className="font-semibold text-sm">
+                                          {getPriorityBadge(exam.priority)} {exam.type}
+                                          {exam.status === 'Przygotowanie' && ' ⚠️'}
+                                        </span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteExam(patient.id, date, exam.id);
+                                          }}
+                                          className="text-red-600 hover:text-red-800 ml-1 text-base leading-none"
+                                          title="Usuń badanie"
+                                        >
+                                          ×
+                                        </button>
+                                      </div>
+                                      {exam.priority === 'badanie z terminem' && exam.deadlineDate && (
+                                        <div className="text-xs opacity-75 mt-1">
+                                          termin: {formatDeadlineDate(exam.deadlineDate)}
+                                        </div>
+                                      )}
+                                      {exam.timeOfDay && (
+                                        <div className="text-xs opacity-75 mt-1">
+                                          {exam.timeOfDay}
+                                        </div>
+                                      )}
+                                      {exam.checklist?.length > 0 && (
+                                        <div className="text-xs opacity-75 mt-1">
+                                          ✓ {formatChecklist(exam.checklist, exam.otherPreparation)}
+                                        </div>
+                                      )}
+                                      {(exam.createdAt || exam.createdBy) && (
+                                        <div className="text-[10px] opacity-60 mt-2 pt-1 border-t border-gray-300 space-y-0.5">
+                                          {exam.createdAt && (
+                                            <div>zlecono: {formatDateTime(exam.createdAt)}</div>
+                                          )}
+                                          {exam.createdBy && (
+                                            <div>dodał: {exam.createdBy}</div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                    {exam.priority === 'do dnia' && exam.deadlineDate && (
-                                      <div className="text-xs opacity-75 mt-1">
-                                        do dnia: {formatDeadlineDate(exam.deadlineDate)}
-                                      </div>
-                                    )}
-                                    {exam.timeOfDay && (
-                                      <div className="text-xs opacity-75 mt-1">
-                                        {exam.timeOfDay}
-                                      </div>
-                                    )}
-                                    {exam.checklist?.length > 0 && (
-                                      <div className="text-xs opacity-75 mt-1">
-                                        ✓ {formatChecklist(exam.checklist, exam.otherPreparation)}
-                                      </div>
-                                    )}
-                                    {(exam.createdAt || exam.createdBy) && (
-                                      <div className="text-[10px] opacity-60 mt-2 pt-1 border-t border-gray-300 space-y-0.5">
-                                        {exam.createdAt && (
-                                          <div>zlecono: {formatDateTime(exam.createdAt)}</div>
-                                        )}
-                                        {exam.createdBy && (
-                                          <div>dodał: {exam.createdBy}</div>
-                                        )}
-                                      </div>
-                                    )}
-                                  </div>
-                                ))}
+                                  );
+                                })}
                               </div>
                             </td>
                           );
@@ -964,7 +1028,7 @@ export default function Home() {
                       
                       <div className="bg-orange-100 border border-orange-300 rounded-lg p-4 text-center">
                         <div className="text-2xl font-bold text-orange-800">⏰ {stats.deadline}</div>
-                        <div className="text-sm text-orange-600">Do dnia</div>
+                        <div className="text-sm text-orange-600">Badanie z terminem</div>
                       </div>
                       
                       <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 text-center">
@@ -981,6 +1045,11 @@ export default function Home() {
                         <div className="text-2xl font-bold text-gray-800">📋 {stats.incomplete}</div>
                         <div className="text-sm text-gray-600">Niewykonane</div>
                       </div>
+
+                      <div className="bg-red-100 border-2 border-red-500 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-red-800">🔴 {stats.overdue}</div>
+                        <div className="text-sm text-red-700 font-semibold">Zaległe</div>
+                      </div>
                     </>
                   );
                 })()}
@@ -991,59 +1060,70 @@ export default function Home() {
                 {getTodayExams().length === 0 ? (
                   <p className="text-gray-500">Brak badań zaplanowanych na dziś</p>
                 ) : (
-                  getTodayExams().map(exam => (
-                    <div
-                      key={exam.id}
-                      className={`p-4 rounded-lg ${getStatusColor(exam.status)} cursor-pointer hover:opacity-90`}
-                      onClick={() => openEditExam(exam.patientId, exam.date, exam)}
-                      title="Kliknij, aby edytować badanie"
-                    >
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <div className="font-bold text-lg">
-                            {getPriorityBadge(exam.priority)} {exam.type}
-                            {exam.status === 'Przygotowanie' && ' ⚠️'}
+                  getTodayExams().map(exam => {
+                    const overdue = isExamOverdue(exam);
+                    
+                    return (
+                      <div
+                        key={exam.id}
+                        className={`p-4 rounded-lg ${getStatusColor(exam.status)} cursor-pointer hover:opacity-90 ${
+                          overdue ? 'ring-4 ring-red-600' : ''
+                        }`}
+                        onClick={() => openEditExam(exam.patientId, exam.date, exam)}
+                        title="Kliknij, aby edytować badanie"
+                      >
+                        {overdue && (
+                          <div className="text-red-700 font-bold text-lg mb-2">
+                            ⚠️ TERMIN MINĄŁ
                           </div>
-                          <div className="text-sm mt-1">
-                            Pacjent: {exam.patient} | Pokój: {exam.room}
-                          </div>
-                          {exam.priority === 'do dnia' && exam.deadlineDate && (
+                        )}
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <div className="font-bold text-lg">
+                              {getPriorityBadge(exam.priority)} {exam.type}
+                              {exam.status === 'Przygotowanie' && ' ⚠️'}
+                            </div>
                             <div className="text-sm mt-1">
-                              Do dnia: {formatDeadlineDate(exam.deadlineDate)}
+                              Pacjent: {exam.patient} | Pokój: {exam.room}
                             </div>
-                          )}
-                          {exam.timeOfDay && (
-                            <div className="text-sm mt-1">Pora: {exam.timeOfDay}</div>
-                          )}
-                          {exam.checklist?.length > 0 && (
-                            <div className="text-sm mt-2">
-                              <strong>Do przygotowania:</strong>
-                              <ul className="list-disc list-inside mt-1">
-                                {exam.checklist.map((item, i) => (
-                                  <li key={i}>
-                                    {item === 'inne' && exam.otherPreparation
-                                      ? `inne: ${exam.otherPreparation}`
-                                      : item}
-                                  </li>
-                                ))}
-                              </ul>
-                            </div>
-                          )}
-                          {exam.createdAt && (
-                            <div className="text-xs opacity-70 mt-2 italic">
-                              Zlecono: {formatDateTime(exam.createdAt)}
-                            </div>
-                          )}
-                          {exam.createdBy && (
-                            <div className="text-xs opacity-70 italic">
-                              Dodał: {exam.createdBy}
-                            </div>
-                          )}
+                            {exam.priority === 'badanie z terminem' && exam.deadlineDate && (
+                              <div className="text-sm mt-1">
+                                Termin: {formatDeadlineDate(exam.deadlineDate)}
+                              </div>
+                            )}
+                            {exam.timeOfDay && (
+                              <div className="text-sm mt-1">Pora: {exam.timeOfDay}</div>
+                            )}
+                            {exam.checklist?.length > 0 && (
+                              <div className="text-sm mt-2">
+                                <strong>Do przygotowania:</strong>
+                                <ul className="list-disc list-inside mt-1">
+                                  {exam.checklist.map((item, i) => (
+                                    <li key={i}>
+                                      {item === 'inne' && exam.otherPreparation
+                                        ? `inne: ${exam.otherPreparation}`
+                                        : item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {exam.createdAt && (
+                              <div className="text-xs opacity-70 mt-2 italic">
+                                Zlecono: {formatDateTime(exam.createdAt)}
+                              </div>
+                            )}
+                            {exam.createdBy && (
+                              <div className="text-xs opacity-70 italic">
+                                Dodał: {exam.createdBy}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-sm font-semibold">{exam.status}</div>
                         </div>
-                        <div className="text-sm font-semibold">{exam.status}</div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -1178,12 +1258,12 @@ export default function Home() {
                   >
                     <option value="standard">Standard</option>
                     <option value="pilne">Pilne</option>
-                    <option value="do dnia">Do dnia</option>
+                    <option value="badanie z terminem">Badanie z terminem</option>
                   </select>
                 </div>
               </div>
 
-              {currentExamForm.priority === 'do dnia' && (
+              {currentExamForm.priority === 'badanie z terminem' && (
                 <div>
                   <label className="block text-sm font-semibold mb-2">Termin wykonania do dnia:</label>
                   <input
@@ -1279,8 +1359,8 @@ export default function Home() {
                           </div>
                           <div className="text-xs space-y-1">
                             <div>Status: {exam.status} | Priorytet: {exam.priority}</div>
-                            {exam.priority === 'do dnia' && exam.deadlineDate && (
-                              <div>Do dnia: {formatDeadlineDate(exam.deadlineDate)}</div>
+                            {exam.priority === 'badanie z terminem' && exam.deadlineDate && (
+                              <div>Termin: {formatDeadlineDate(exam.deadlineDate)}</div>
                             )}
                             {exam.timeOfDay && <div>Pora: {exam.timeOfDay}</div>}
                             {exam.checklist?.length > 0 && (
