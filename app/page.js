@@ -1,3 +1,7 @@
+'use client';
+
+import { useState, useMemo, useEffect } from 'react';
+
 const scrollbarStyles = `
   .custom-scrollbar::-webkit-scrollbar {
     width: 8px;
