@@ -1,4 +1,4 @@
-// Custom scrollbar styles
+/ Custom scrollbar styles
 const scrollbarStyles = `
   .custom-scrollbar::-webkit-scrollbar {
     width: 10px;
