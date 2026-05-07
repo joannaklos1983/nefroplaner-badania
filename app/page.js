@@ -349,12 +349,19 @@ export default function Home() {
   };
 
   const addToExamList = () => {
+    // Walidacja nazwy badania
     if (currentExamForm.type === 'inne' && !currentExamForm.customType.trim()) {
       alert('Proszę wpisać nazwę badania');
       return;
     }
     
     if (!currentExamForm.type && !currentExamForm.customType) return;
+
+    // WALIDACJA POLA "Kto zlecił / dodał" - OBOWIĄZKOWE
+    if (!currentExamForm.createdBy.trim()) {
+      alert('Uzupełnij pole: Kto zlecił / dodał.');
+      return;
+    }
 
     const examType = currentExamForm.type === 'inne' ? currentExamForm.customType : currentExamForm.type;
     
@@ -415,12 +422,19 @@ export default function Home() {
   };
 
   const saveEditedExam = () => {
+    // Walidacja nazwy badania
     if (currentExamForm.type === 'inne' && !currentExamForm.customType.trim()) {
       alert('Proszę wpisać nazwę badania');
       return;
     }
     
     if (!currentExamForm.type && !currentExamForm.customType) return;
+
+    // WALIDACJA POLA "Kto zlecił / dodał" - OBOWIĄZKOWE
+    if (!currentExamForm.createdBy.trim()) {
+      alert('Uzupełnij pole: Kto zlecił / dodał.');
+      return;
+    }
 
     const examType = currentExamForm.type === 'inne' ? currentExamForm.customType : currentExamForm.type;
     const dateKey = getDateKey(examModal.date);
@@ -1142,14 +1156,19 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Dodał / zlecił:</label>
+                <label className="block text-sm font-semibold mb-2">
+                  Dodał / zlecił: <span className="text-red-600">*</span>
+                </label>
                 <input
                   type="text"
                   value={currentExamForm.createdBy}
                   onChange={(e) => setCurrentExamForm({...currentExamForm, createdBy: e.target.value})}
-                  className="w-full border rounded px-3 py-2 text-gray-600"
+                  className="w-full border rounded px-3 py-2"
                   placeholder="np. lekarz dyżurny, piel. dyżurna, sekretariat"
                 />
+                {!currentExamForm.createdBy.trim() && (
+                  <p className="text-xs text-red-600 mt-1">To pole jest obowiązkowe</p>
+                )}
               </div>
 
               <div>
