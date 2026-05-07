@@ -559,6 +559,20 @@ export default function Home() {
     });
   };
 
+  // NOWA FUNKCJA: Oblicz statystyki dla widoku "Dzisiaj"
+  const getTodayStats = () => {
+    const todayExams = getTodayExams();
+    
+    return {
+      total: todayExams.length,
+      urgent: todayExams.filter(e => e.priority === 'pilne').length,
+      deadline: todayExams.filter(e => e.priority === 'do dnia').length,
+      preparation: todayExams.filter(e => e.status === 'Przygotowanie').length,
+      completed: todayExams.filter(e => e.status === 'Wykonane').length,
+      incomplete: todayExams.filter(e => e.status !== 'Wykonane').length
+    };
+  };
+
   const filterPatients = () => {
     return patients.filter(patient => {
       if (filters.room && !patient.room.includes(filters.room)) return false;
@@ -931,6 +945,48 @@ export default function Home() {
           {currentView === 'today' && (
             <div>
               <h2 className="text-2xl font-bold mb-4">Badania na dziś</h2>
+              
+              {/* LICZNIKI BADAŃ */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+                {(() => {
+                  const stats = getTodayStats();
+                  return (
+                    <>
+                      <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-blue-800">{stats.total}</div>
+                        <div className="text-sm text-blue-600">Wszystkie badania</div>
+                      </div>
+                      
+                      <div className="bg-red-100 border border-red-300 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-red-800">🔴 {stats.urgent}</div>
+                        <div className="text-sm text-red-600">Pilne</div>
+                      </div>
+                      
+                      <div className="bg-orange-100 border border-orange-300 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-orange-800">⏰ {stats.deadline}</div>
+                        <div className="text-sm text-orange-600">Do dnia</div>
+                      </div>
+                      
+                      <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-yellow-800">⚠️ {stats.preparation}</div>
+                        <div className="text-sm text-yellow-600">Przygotowanie</div>
+                      </div>
+                      
+                      <div className="bg-green-100 border border-green-300 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-green-800">✅ {stats.completed}</div>
+                        <div className="text-sm text-green-600">Wykonane</div>
+                      </div>
+                      
+                      <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
+                        <div className="text-2xl font-bold text-gray-800">📋 {stats.incomplete}</div>
+                        <div className="text-sm text-gray-600">Niewykonane</div>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+
+              {/* LISTA BADAŃ */}
               <div className="space-y-2">
                 {getTodayExams().length === 0 ? (
                   <p className="text-gray-500">Brak badań zaplanowanych na dziś</p>
