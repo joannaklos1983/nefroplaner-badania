@@ -176,6 +176,25 @@ export default function Home() {
     return days;
   }, [currentMonth]);
 
+  // Funkcja do pobrania szczegółów badań dla danego dnia
+  const getDayExamsDetails = (date) => {
+    const dateKey = getDateKey(date);
+    const allExams = [];
+    
+    patients.forEach(patient => {
+      const dayExams = patient.exams[dateKey] || [];
+      dayExams.forEach(exam => {
+        allExams.push({
+          ...exam,
+          patientInitials: patient.initials,
+          patientRoom: patient.room
+        });
+      });
+    });
+    
+    return allExams;
+  };
+
   // Funkcja do liczenia badań dla danego dnia
   const getDayExamsStats = (date) => {
     const dateKey = getDateKey(date);
@@ -713,12 +732,17 @@ export default function Home() {
                   const isCurrentMonth = date.getMonth() === currentMonth.getMonth();
                   const isToday = getDateKey(date) === getDateKey(new Date());
                   const stats = getDayExamsStats(date);
+                  const examsDetails = getDayExamsDetails(date);
+                  
+                  // Pokaż maksymalnie 3 badania
+                  const examsToShow = examsDetails.slice(0, 3);
+                  const remainingCount = examsDetails.length - 3;
                   
                   return (
                     <div
                       key={index}
                       onClick={() => handleDayClick(date)}
-                      className={`min-h-[100px] p-2 border rounded cursor-pointer hover:bg-blue-50 ${
+                      className={`min-h-[120px] p-2 border rounded cursor-pointer hover:bg-blue-50 ${
                         !isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'
                       } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
                     >
@@ -727,11 +751,27 @@ export default function Home() {
                       </div>
                       {stats.total > 0 && (
                         <div className="space-y-1 text-xs">
-                          <div className="text-gray-700">
+                          <div className="text-gray-700 font-semibold mb-1">
                             Badań: {stats.total}
                           </div>
+                          
+                          {/* Lista konkretnych badań (max 3) */}
+                          {examsToShow.map((exam, idx) => (
+                            <div key={idx} className="text-gray-600 text-[10px] leading-tight">
+                              • {exam.type} — {exam.patientInitials} / {exam.patientRoom}
+                            </div>
+                          ))}
+                          
+                          {/* Jeśli jest więcej niż 3 badania */}
+                          {remainingCount > 0 && (
+                            <div className="text-gray-500 text-[10px] italic">
+                              + {remainingCount} więcej
+                            </div>
+                          )}
+                          
+                          {/* Liczniki priorytetów */}
                           {stats.urgent > 0 && (
-                            <div className="text-red-600">
+                            <div className="text-red-600 mt-1">
                               🔴 Pilne: {stats.urgent}
                             </div>
                           )}
