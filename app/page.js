@@ -72,7 +72,7 @@ export default function Home() {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
 
-  // NOWA FUNKCJA: Sprawdza czy badanie jest zaległe
+  // Sprawdza czy badanie jest zaległe
   const isExamOverdue = (exam) => {
     if (exam.priority !== 'badanie z terminem') return false;
     if (!exam.deadlineDate) return false;
@@ -363,6 +363,37 @@ export default function Home() {
     });
   };
 
+  // Szybka zmiana statusu (bez modala)
+  const cycleExamStatus = (patientId, date, examId, e) => {
+    e.stopPropagation();
+    
+    const dateKey = getDateKey(date);
+    
+    setPatients(patients.map(p => {
+      if (p.id === patientId) {
+        return {
+          ...p,
+          exams: {
+            ...p.exams,
+            [dateKey]: (p.exams[dateKey] || []).map(exam => {
+              if (exam.id === examId) {
+                let newStatus;
+                if (exam.status === 'Zlecone') newStatus = 'W trakcie';
+                else if (exam.status === 'W trakcie') newStatus = 'Wykonane';
+                else if (exam.status === 'Wykonane') newStatus = 'Zlecone';
+                else newStatus = 'Zlecone';
+                
+                return { ...exam, status: newStatus };
+              }
+              return exam;
+            })
+          }
+        };
+      }
+      return p;
+    }));
+  };
+
   const addToExamList = () => {
     // Walidacja nazwy badania
     if (currentExamForm.type === 'inne' && !currentExamForm.customType.trim()) {
@@ -530,13 +561,14 @@ export default function Home() {
     });
   };
 
+  // Nowoczesne kolory statusów
   const getStatusColor = (status) => {
     switch(status) {
-      case 'Zlecone': return 'bg-gray-200 text-gray-800';
-      case 'W trakcie': return 'bg-blue-200 text-blue-800';
-      case 'Wykonane': return 'bg-green-200 text-green-800';
-      case 'Przygotowanie': return 'bg-red-200 text-red-800';
-      default: return 'bg-gray-200';
+      case 'Zlecone': return 'bg-slate-100 text-slate-700 border-slate-200';
+      case 'W trakcie': return 'bg-blue-50 text-blue-700 border-blue-200';
+      case 'Wykonane': return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+      case 'Przygotowanie': return 'bg-amber-50 text-amber-700 border-amber-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
     }
   };
 
@@ -574,7 +606,7 @@ export default function Home() {
     });
   };
 
-  // NOWA FUNKCJA: Pobierz wszystkie zaległe badania
+  // Pobierz wszystkie zaległe badania
   const getOverdueExams = () => {
     const allExams = [];
     
@@ -598,7 +630,7 @@ export default function Home() {
     return allExams;
   };
 
-  // Oblicz statystyki dla widoku "Dzisiaj"
+  // ✅ POPRAWKA 2: Oblicz statystyki dla widoku "Dzisiaj"
   const getTodayStats = () => {
     const todayExams = getTodayExams();
     
@@ -609,7 +641,7 @@ export default function Home() {
       preparation: todayExams.filter(e => e.status === 'Przygotowanie').length,
       completed: todayExams.filter(e => e.status === 'Wykonane').length,
       incomplete: todayExams.filter(e => e.status !== 'Wykonane').length,
-      overdue: todayExams.filter(e => isExamOverdue(e)).length
+      overdue: getOverdueExams().length  // ✅ POPRAWIONE - wszystkie zaległe z całej aplikacji
     };
   };
 
@@ -648,40 +680,46 @@ export default function Home() {
   };
 
   return (
-   <div className="min-h-screen p-8 bg-gradient-to-br from-blue-50 via-white to-cyan-50">
+    <div className="min-h-screen p-4 md:p-8 relative overflow-hidden">
+      {/* PREMIUM BACKGROUND - Delikatny medical gradient + glassmorphism */}
+      <div className="fixed inset-0 -z-10 bg-gradient-to-br from-blue-50 via-white to-cyan-50"></div>
+      <div className="fixed top-0 left-0 w-96 h-96 bg-blue-200/20 rounded-full blur-3xl -z-10"></div>
+      <div className="fixed bottom-0 right-0 w-96 h-96 bg-cyan-200/20 rounded-full blur-3xl -z-10"></div>
+      
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-lg shadow-lg p-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6">
+        {/* PREMIUM CARD - Glassmorphism effect */}
+        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-white/50 p-6 md:p-8">
+          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-cyan-600 bg-clip-text text-transparent mb-6">
             NefroPlaner Badania
           </h1>
 
-          <div className="flex gap-4 mb-6">
+          <div className="flex gap-3 mb-6">
             <button
               onClick={() => setCurrentView('week')}
-              className={`px-4 py-2 rounded ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all ${
                 currentView === 'week'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/60 text-gray-700 hover:bg-white border border-gray-200'
               }`}
             >
               Widok tygodniowy
             </button>
             <button
               onClick={() => setCurrentView('today')}
-              className={`px-4 py-2 rounded ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all ${
                 currentView === 'today'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/60 text-gray-700 hover:bg-white border border-gray-200'
               }`}
             >
               Dzisiaj
             </button>
             <button
               onClick={() => setCurrentView('month')}
-              className={`px-4 py-2 rounded ${
+              className={`px-4 py-2.5 rounded-xl font-medium transition-all ${
                 currentView === 'month'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-200 text-gray-700'
+                  ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30'
+                  : 'bg-white/60 text-gray-700 hover:bg-white border border-gray-200'
               }`}
             >
               Miesiąc
@@ -689,28 +727,28 @@ export default function Home() {
           </div>
 
           {currentView === 'week' && (
-            <div className="mb-4 flex items-center justify-between bg-gray-100 p-4 rounded">
+            <div className="mb-4 flex flex-col md:flex-row items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-100">
               <button
                 onClick={goToPreviousWeek}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 border border-blue-200 font-medium transition-all mb-2 md:mb-0"
               >
                 ← Poprzedni tydzień
               </button>
-              <div className="text-center">
-                <div className="text-lg font-semibold">
+              <div className="text-center mb-2 md:mb-0">
+                <div className="text-lg font-semibold text-gray-800">
                   Tydzień: {formatWeekRange(currentWeekStart)}
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={goToCurrentWeek}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:shadow-lg transition-all font-medium"
                 >
                   Bieżący tydzień
                 </button>
                 <button
                   onClick={goToNextWeek}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 border border-blue-200 font-medium transition-all"
                 >
                   Następny tydzień →
                 </button>
@@ -719,28 +757,28 @@ export default function Home() {
           )}
 
           {currentView === 'month' && (
-            <div className="mb-4 flex items-center justify-between bg-gray-100 p-4 rounded">
+            <div className="mb-4 flex flex-col md:flex-row items-center justify-between bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-100">
               <button
                 onClick={goToPreviousMonth}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 border border-blue-200 font-medium transition-all mb-2 md:mb-0"
               >
                 ← Poprzedni miesiąc
               </button>
-              <div className="text-center">
-                <div className="text-lg font-semibold">
+              <div className="text-center mb-2 md:mb-0">
+                <div className="text-lg font-semibold text-gray-800">
                   {formatMonthYear(currentMonth)}
                 </div>
               </div>
               <div className="flex gap-2">
                 <button
                   onClick={goToCurrentMonth}
-                  className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-lg hover:shadow-lg transition-all font-medium"
                 >
                   Bieżący miesiąc
                 </button>
                 <button
                   onClick={goToNextMonth}
-                  className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="px-4 py-2 bg-white text-blue-600 rounded-lg hover:bg-blue-50 border border-blue-200 font-medium transition-all"
                 >
                   Następny miesiąc →
                 </button>
@@ -749,51 +787,55 @@ export default function Home() {
           )}
 
           {currentView === 'week' && (
-            <div className="mb-6 p-4 bg-gray-100 rounded">
-              <h3 className="font-semibold mb-3">Filtry:</h3>
-              <div className="flex flex-wrap gap-4">
-                <label className="flex items-center gap-2">
+            <div className="mb-6 p-4 bg-white/60 rounded-xl border border-gray-200">
+              <h3 className="font-semibold mb-3 text-gray-700">Filtry:</h3>
+              <div className="flex flex-wrap gap-3">
+                <label className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.incomplete}
                     onChange={(e) => setFilters({...filters, incomplete: e.target.checked})}
+                    className="rounded text-blue-600 focus:ring-blue-500"
                   />
-                  Niewykonane
+                  <span className="text-sm font-medium text-gray-700">Niewykonane</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.preparation}
                     onChange={(e) => setFilters({...filters, preparation: e.target.checked})}
+                    className="rounded text-blue-600 focus:ring-blue-500"
                   />
-                  Przygotowanie
+                  <span className="text-sm font-medium text-gray-700">Przygotowanie</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.urgent}
                     onChange={(e) => setFilters({...filters, urgent: e.target.checked})}
+                    className="rounded text-blue-600 focus:ring-blue-500"
                   />
-                  Pilne
+                  <span className="text-sm font-medium text-gray-700">Pilne</span>
                 </label>
-                <label className="flex items-center gap-2">
+                <label className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-blue-300 transition-colors">
                   <input
                     type="checkbox"
                     checked={filters.overdue}
                     onChange={(e) => setFilters({...filters, overdue: e.target.checked})}
+                    className="rounded text-blue-600 focus:ring-blue-500"
                   />
-                  Zaległe
+                  <span className="text-sm font-medium text-gray-700">Zaległe</span>
                 </label>
                 <input
                   type="text"
                   placeholder="Numer pokoju"
                   value={filters.room}
                   onChange={(e) => setFilters({...filters, room: e.target.value})}
-                  className="px-3 py-1 border rounded"
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
                 <button
                   onClick={() => setFilters({incomplete: false, preparation: false, urgent: false, overdue: false, room: ''})}
-                  className="px-3 py-1 bg-gray-300 rounded text-sm"
+                  className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm font-medium text-gray-700 transition-colors"
                 >
                   Wyczyść filtry
                 </button>
@@ -805,7 +847,7 @@ export default function Home() {
             <div className="mb-4">
               <div className="grid grid-cols-7 gap-2">
                 {dayNames.map(day => (
-                  <div key={day} className="text-center font-semibold text-sm p-2 bg-gray-100">
+                  <div key={day} className="text-center font-semibold text-sm p-2 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg">
                     {day}
                   </div>
                 ))}
@@ -815,7 +857,6 @@ export default function Home() {
                   const stats = getDayExamsStats(date);
                   const examsDetails = getDayExamsDetails(date);
                   
-                  // Pokaż maksymalnie 3 badania
                   const examsToShow = examsDetails.slice(0, 3);
                   const remainingCount = examsDetails.length - 3;
                   
@@ -823,9 +864,9 @@ export default function Home() {
                     <div
                       key={index}
                       onClick={() => handleDayClick(date)}
-                      className={`min-h-[120px] p-2 border rounded cursor-pointer hover:bg-blue-50 ${
-                        !isCurrentMonth ? 'bg-gray-50 text-gray-400' : 'bg-white'
-                      } ${isToday ? 'ring-2 ring-blue-500' : ''}`}
+                      className={`min-h-[120px] p-2 border rounded-lg cursor-pointer transition-all hover:shadow-md ${
+                        !isCurrentMonth ? 'bg-gray-50/50 text-gray-400' : 'bg-white/80'
+                      } ${isToday ? 'ring-2 ring-blue-500 shadow-lg' : 'border-gray-200'}`}
                     >
                       <div className="font-semibold text-sm mb-2">
                         {date.getDate()}
@@ -836,21 +877,18 @@ export default function Home() {
                             Badań: {stats.total}
                           </div>
                           
-                          {/* Lista konkretnych badań (max 3) */}
                           {examsToShow.map((exam, idx) => (
                             <div key={idx} className="text-gray-600 text-[10px] leading-tight">
                               • {exam.type} — {exam.patientInitials} / {exam.patientRoom}
                             </div>
                           ))}
                           
-                          {/* Jeśli jest więcej niż 3 badania */}
                           {remainingCount > 0 && (
                             <div className="text-gray-500 text-[10px] italic">
                               + {remainingCount} więcej
                             </div>
                           )}
                           
-                          {/* Liczniki priorytetów */}
                           {stats.urgent > 0 && (
                             <div className="text-red-600 mt-1">
                               🔴 Pilne: {stats.urgent}
@@ -874,50 +912,50 @@ export default function Home() {
             <>
               <button
                 onClick={() => setShowAddPatient(true)}
-                className="mb-4 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+                className="mb-4 px-5 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl hover:shadow-lg transition-all font-medium"
               >
                 + Dodaj pacjenta
               </button>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
                 <table className="w-full border-collapse min-w-[1200px]">
                   <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border p-2 text-sm w-20">Akcje</th>
-                      <th className="border p-2 text-sm w-16">Pokój</th>
-                      <th className="border p-2 text-sm w-20">Pacjent</th>
-                      <th className="border p-2 text-sm w-48">Uwagi</th>
+                    <tr className="bg-gradient-to-r from-blue-50 to-cyan-50">
+                      <th className="border-b border-gray-200 p-3 text-sm font-semibold text-gray-700 w-20">Akcje</th>
+                      <th className="border-b border-gray-200 p-3 text-sm font-semibold text-gray-700 w-16">Pokój</th>
+                      <th className="border-b border-gray-200 p-3 text-sm font-semibold text-gray-700 w-20">Pacjent</th>
+                      <th className="border-b border-gray-200 p-3 text-sm font-semibold text-gray-700 w-48">Uwagi</th>
                       {weekDates.map((date, index) => (
-                        <th key={index} className="border p-2 text-sm min-w-[140px]">
+                        <th key={index} className="border-b border-gray-200 p-3 text-sm font-semibold text-gray-700 min-w-[140px]">
                           {dayNames[index]} {formatDate(date)}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="bg-white/50">
                     {filterPatients().map(patient => (
-                      <tr key={patient.id} className="hover:bg-gray-50">
-                        <td className="border p-2 text-center">
+                      <tr key={patient.id} className="hover:bg-blue-50/30 transition-colors">
+                        <td className="border-b border-gray-100 p-2 text-center">
                           <div className="flex gap-1 justify-center">
                             <button
                               onClick={() => openEditPatient(patient)}
-                              className="px-2 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                              className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-lg hover:bg-blue-200 transition-colors"
                               title="Edytuj pacjenta"
                             >
                               ✏️
                             </button>
                             <button
                               onClick={() => handleDeletePatient(patient.id)}
-                              className="px-2 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600"
+                              className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-lg hover:bg-red-200 transition-colors"
                               title="Usuń pacjenta"
                             >
                               🗑️
                             </button>
                           </div>
                         </td>
-                        <td className="border p-2 text-center font-semibold">{patient.room}</td>
-                        <td className="border p-2 text-center font-semibold">{patient.initials}</td>
-                        <td className="border p-2 text-sm text-gray-600 break-words">{patient.notes}</td>
+                        <td className="border-b border-gray-100 p-2 text-center font-semibold text-gray-800">{patient.room}</td>
+                        <td className="border-b border-gray-100 p-2 text-center font-semibold text-gray-800">{patient.initials}</td>
+                        <td className="border-b border-gray-100 p-2 text-sm text-gray-600 break-words">{patient.notes}</td>
                         {weekDates.map((date, index) => {
                           const dateKey = getDateKey(date);
                           const dayExams = patient.exams[dateKey] || [];
@@ -925,7 +963,7 @@ export default function Home() {
                           return (
                             <td
                               key={index}
-                              className="border p-2 cursor-pointer hover:bg-blue-50 align-top"
+                              className="border-b border-gray-100 p-2 cursor-pointer hover:bg-blue-50/50 align-top transition-colors"
                               onClick={() => openExamModal(patient.id, date)}
                               title="Kliknij, aby dodać badanie"
                             >
@@ -936,8 +974,8 @@ export default function Home() {
                                   return (
                                     <div
                                       key={exam.id}
-                                      className={`text-xs p-2 rounded ${getStatusColor(exam.status)} cursor-pointer hover:opacity-80 ${
-                                        overdue ? 'ring-2 ring-red-600' : ''
+                                      className={`text-xs p-3 rounded-xl border transition-all ${getStatusColor(exam.status)} ${
+                                        overdue ? 'ring-2 ring-red-500 shadow-md' : ''
                                       }`}
                                       onClick={(e) => {
                                         e.stopPropagation();
@@ -946,12 +984,12 @@ export default function Home() {
                                       title="Kliknij, aby edytować badanie"
                                     >
                                       {overdue && (
-                                        <div className="text-red-700 font-bold text-xs mb-1">
+                                        <div className="text-red-700 font-bold text-xs mb-2 flex items-center gap-1">
                                           ⚠️ TERMIN MINĄŁ
                                         </div>
                                       )}
-                                      <div className="flex justify-between items-start mb-1">
-                                        <span className="font-semibold text-sm">
+                                      <div className="flex justify-between items-start mb-2">
+                                        <span className="font-semibold text-sm text-gray-800">
                                           {getPriorityBadge(exam.priority)} {exam.type}
                                           {exam.status === 'Przygotowanie' && ' ⚠️'}
                                         </span>
@@ -960,29 +998,39 @@ export default function Home() {
                                             e.stopPropagation();
                                             handleDeleteExam(patient.id, date, exam.id);
                                           }}
-                                          className="text-red-600 hover:text-red-800 ml-1 text-base leading-none"
+                                          className="text-red-500 hover:text-red-700 ml-2 text-lg leading-none transition-colors"
                                           title="Usuń badanie"
                                         >
                                           ×
                                         </button>
                                       </div>
+                                      
+                                      {/* ✅ POPRAWKA 3a: KLIKALNA ZMIANA STATUSU - lepszy UX */}
+                                      <div
+                                        onClick={(e) => cycleExamStatus(patient.id, date, exam.id, e)}
+                                        className={`inline-block px-4 py-2 rounded-lg text-xs font-semibold border cursor-pointer hover:shadow-lg hover:scale-105 active:scale-95 transition-all ${getStatusColor(exam.status)}`}
+                                        title="Kliknij aby zmienić status"
+                                      >
+                                        {exam.status}
+                                      </div>
+                                      
                                       {exam.priority === 'badanie z terminem' && exam.deadlineDate && (
-                                        <div className="text-xs opacity-75 mt-1">
+                                        <div className="text-xs text-gray-600 mt-2">
                                           termin: {formatDeadlineDate(exam.deadlineDate)}
                                         </div>
                                       )}
                                       {exam.timeOfDay && (
-                                        <div className="text-xs opacity-75 mt-1">
+                                        <div className="text-xs text-gray-600 mt-1">
                                           {exam.timeOfDay}
                                         </div>
                                       )}
                                       {exam.checklist?.length > 0 && (
-                                        <div className="text-xs opacity-75 mt-1">
+                                        <div className="text-xs text-gray-600 mt-1">
                                           ✓ {formatChecklist(exam.checklist, exam.otherPreparation)}
                                         </div>
                                       )}
                                       {(exam.createdAt || exam.createdBy) && (
-                                        <div className="text-[10px] opacity-60 mt-2 pt-1 border-t border-gray-300 space-y-0.5">
+                                        <div className="text-[10px] text-gray-500 mt-2 pt-2 border-t border-gray-200 space-y-0.5">
                                           {exam.createdAt && (
                                             <div>zlecono: {formatDateTime(exam.createdAt)}</div>
                                           )}
@@ -1008,47 +1056,47 @@ export default function Home() {
 
           {currentView === 'today' && (
             <div>
-              <h2 className="text-2xl font-bold mb-4">Badania na dziś</h2>
+              <h2 className="text-2xl font-bold mb-4 text-gray-800">Badania na dziś</h2>
               
               {/* LICZNIKI BADAŃ */}
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3 mb-6">
                 {(() => {
                   const stats = getTodayStats();
                   return (
                     <>
-                      <div className="bg-blue-100 border border-blue-300 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-blue-800">{stats.total}</div>
-                        <div className="text-sm text-blue-600">Wszystkie badania</div>
+                      <div className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-2xl font-bold text-blue-700">{stats.total}</div>
+                        <div className="text-xs text-blue-600 font-medium mt-1">Wszystkie badania</div>
                       </div>
                       
-                      <div className="bg-red-100 border border-red-300 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-red-800">🔴 {stats.urgent}</div>
-                        <div className="text-sm text-red-600">Pilne</div>
+                      <div className="bg-gradient-to-br from-red-50 to-red-100 border border-red-200 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-2xl font-bold text-red-700">🔴 {stats.urgent}</div>
+                        <div className="text-xs text-red-600 font-medium mt-1">Pilne</div>
                       </div>
                       
-                      <div className="bg-orange-100 border border-orange-300 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-orange-800">⏰ {stats.deadline}</div>
-                        <div className="text-sm text-orange-600">Badanie z terminem</div>
+                      <div className="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-2xl font-bold text-orange-700">⏰ {stats.deadline}</div>
+                        <div className="text-xs text-orange-600 font-medium mt-1">Badanie z terminem</div>
                       </div>
                       
-                      <div className="bg-yellow-100 border border-yellow-300 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-yellow-800">⚠️ {stats.preparation}</div>
-                        <div className="text-sm text-yellow-600">Przygotowanie</div>
+                      <div className="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-2xl font-bold text-amber-700">⚠️ {stats.preparation}</div>
+                        <div className="text-xs text-amber-600 font-medium mt-1">Przygotowanie</div>
                       </div>
                       
-                      <div className="bg-green-100 border border-green-300 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-green-800">✅ {stats.completed}</div>
-                        <div className="text-sm text-green-600">Wykonane</div>
+                      <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 border border-emerald-200 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-2xl font-bold text-emerald-700">✅ {stats.completed}</div>
+                        <div className="text-xs text-emerald-600 font-medium mt-1">Wykonane</div>
                       </div>
                       
-                      <div className="bg-gray-100 border border-gray-300 rounded-lg p-4 text-center">
-                        <div className="text-2xl font-bold text-gray-800">📋 {stats.incomplete}</div>
-                        <div className="text-sm text-gray-600">Niewykonane</div>
+                      <div className="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-xl p-4 text-center shadow-sm hover:shadow-md transition-shadow">
+                        <div className="text-2xl font-bold text-slate-700">📋 {stats.incomplete}</div>
+                        <div className="text-xs text-slate-600 font-medium mt-1">Niewykonane</div>
                       </div>
 
-                      <div className="bg-red-100 border-2 border-red-500 rounded-lg p-4 text-center">
+                      <div className="bg-gradient-to-br from-red-100 to-red-200 border-2 border-red-400 rounded-xl p-4 text-center shadow-md hover:shadow-lg transition-shadow">
                         <div className="text-2xl font-bold text-red-800">🔴 {stats.overdue}</div>
-                        <div className="text-sm text-red-700 font-semibold">Zaległe</div>
+                        <div className="text-xs text-red-700 font-bold mt-1">Zaległe</div>
                       </div>
                     </>
                   );
@@ -1056,9 +1104,9 @@ export default function Home() {
               </div>
 
               {/* LISTA BADAŃ */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {getTodayExams().length === 0 ? (
-                  <p className="text-gray-500">Brak badań zaplanowanych na dziś</p>
+                  <p className="text-gray-500 text-center py-8">Brak badań zaplanowanych na dziś</p>
                 ) : (
                   getTodayExams().map(exam => {
                     const overdue = isExamOverdue(exam);
@@ -1066,38 +1114,48 @@ export default function Home() {
                     return (
                       <div
                         key={exam.id}
-                        className={`p-4 rounded-lg ${getStatusColor(exam.status)} cursor-pointer hover:opacity-90 ${
-                          overdue ? 'ring-4 ring-red-600' : ''
-                        }`}
+                        className={`p-5 rounded-xl border transition-all ${
+                          overdue ? 'ring-2 ring-red-500 shadow-lg' : 'shadow-sm hover:shadow-md'
+                        } bg-white/80 backdrop-blur-sm cursor-pointer`}
                         onClick={() => openEditExam(exam.patientId, exam.date, exam)}
                         title="Kliknij, aby edytować badanie"
                       >
                         {overdue && (
-                          <div className="text-red-700 font-bold text-lg mb-2">
+                          <div className="text-red-700 font-bold text-base mb-3 flex items-center gap-2">
                             ⚠️ TERMIN MINĄŁ
                           </div>
                         )}
                         <div className="flex justify-between items-start">
-                          <div>
-                            <div className="font-bold text-lg">
+                          <div className="flex-1">
+                            <div className="font-bold text-lg text-gray-800 mb-2">
                               {getPriorityBadge(exam.priority)} {exam.type}
                               {exam.status === 'Przygotowanie' && ' ⚠️'}
                             </div>
-                            <div className="text-sm mt-1">
+                            <div className="text-sm text-gray-600 mb-3">
                               Pacjent: {exam.patient} | Pokój: {exam.room}
                             </div>
+                            
+                            {/* ✅ POPRAWKA 3b: KLIKALNA ZMIANA STATUSU - lepszy UX */}
+                            <div
+                              onClick={(e) => cycleExamStatus(exam.patientId, exam.date, exam.id, e)}
+                              className={`inline-block px-5 py-2.5 rounded-lg text-sm font-semibold border cursor-pointer hover:shadow-xl hover:scale-105 active:scale-95 transition-all mb-3 ${getStatusColor(exam.status)}`}
+                              title="Kliknij aby zmienić status"
+                            >
+                              {exam.status}
+                            </div>
+                            
                             {exam.priority === 'badanie z terminem' && exam.deadlineDate && (
-                              <div className="text-sm mt-1">
+                              <div className="text-sm text-gray-600 mt-2">
                                 Termin: {formatDeadlineDate(exam.deadlineDate)}
                               </div>
                             )}
                             {exam.timeOfDay && (
-                              <div className="text-sm mt-1">Pora: {exam.timeOfDay}</div>
+                              <div className="text-sm text-gray-600 mt-1">Pora: {exam.timeOfDay}</div>
                             )}
                             {exam.checklist?.length > 0 && (
-                              <div className="text-sm mt-2">
-                                <strong>Do przygotowania:</strong>
-                                <ul className="list-disc list-inside mt-1">
+                              <div className="text-sm mt-3">
+                                <strong className="text-gray-700">Do przygotowania:</strong>
+                                <ul className="list-disc list-inside mt-1 text-gray-600">
                                   {exam.checklist.map((item, i) => (
                                     <li key={i}>
                                       {item === 'inne' && exam.otherPreparation
@@ -1109,17 +1167,16 @@ export default function Home() {
                               </div>
                             )}
                             {exam.createdAt && (
-                              <div className="text-xs opacity-70 mt-2 italic">
+                              <div className="text-xs text-gray-500 mt-3 italic">
                                 Zlecono: {formatDateTime(exam.createdAt)}
                               </div>
                             )}
                             {exam.createdBy && (
-                              <div className="text-xs opacity-70 italic">
+                              <div className="text-xs text-gray-500 italic">
                                 Dodał: {exam.createdBy}
                               </div>
                             )}
                           </div>
-                          <div className="text-sm font-semibold">{exam.status}</div>
                         </div>
                       </div>
                     );
@@ -1132,53 +1189,53 @@ export default function Home() {
       </div>
 
       {(showAddPatient || editingPatient) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full">
-            <h2 className="text-xl font-bold mb-4">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
+            <h2 className="text-xl font-bold mb-4 text-gray-800">
               {editingPatient ? 'Edytuj pacjenta' : 'Dodaj pacjenta'}
             </h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-semibold mb-1">Pokój:</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Pokój:</label>
                 <input
                   type="text"
                   value={newPatient.room}
                   onChange={(e) => setNewPatient({...newPatient, room: e.target.value})}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="np. 101"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1">Inicjały:</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Inicjały:</label>
                 <input
                   type="text"
                   value={newPatient.initials}
                   onChange={(e) => setNewPatient({...newPatient, initials: e.target.value})}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="np. JK"
                 />
               </div>
               <div>
-                <label className="block text-sm font-semibold mb-1">Uwagi:</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Uwagi:</label>
                 <textarea
                   value={newPatient.notes}
                   onChange={(e) => setNewPatient({...newPatient, notes: e.target.value})}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="np. Dializa Pn/Śr/Pt"
                   rows="3"
                 />
               </div>
             </div>
-            <div className="flex gap-2 mt-6">
+            <div className="flex gap-3 mt-6">
               <button
                 onClick={editingPatient ? handleEditPatient : handleAddPatient}
-                className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-2.5 rounded-xl hover:shadow-lg transition-all font-medium"
               >
                 {editingPatient ? 'Zapisz zmiany' : 'Dodaj'}
               </button>
               <button
                 onClick={closePatientModal}
-                className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+                className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-300 transition-all font-medium"
               >
                 Anuluj
               </button>
@@ -1188,9 +1245,9 @@ export default function Home() {
       )}
 
       {examModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 overflow-y-auto z-50">
-          <div className="bg-white rounded-lg p-6 max-w-2xl w-full my-8">
-            <h2 className="text-xl font-bold mb-2">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto z-50">
+          <div className="bg-white rounded-2xl p-6 max-w-2xl w-full my-8 shadow-2xl">
+            <h2 className="text-xl font-bold mb-2 text-gray-800">
               {editingExam 
                 ? `Edytuj badanie - ${dayNames[examModal.date.getDay() === 0 ? 6 : examModal.date.getDay() - 1]} ${formatDate(examModal.date)}`
                 : `Dodaj badania - ${dayNames[examModal.date.getDay() === 0 ? 6 : examModal.date.getDay() - 1]} ${formatDate(examModal.date)}`
@@ -1203,13 +1260,13 @@ export default function Home() {
                 : 'Wybierz badanie, ustaw szczegóły i kliknij + Dodaj do listy. Na końcu zapisz wszystkie badania.'}
             </p>
 
-            <div className="space-y-4 border-b pb-4 mb-4">
+            <div className="space-y-4 border-b border-gray-200 pb-4 mb-4">
               <div>
-                <label className="block text-sm font-semibold mb-2">Rodzaj badania:</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Rodzaj badania:</label>
                 <select
                   value={currentExamForm.type}
                   onChange={(e) => setCurrentExamForm({...currentExamForm, type: e.target.value})}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">-- wybierz --</option>
                   {examTypes.map(type => (
@@ -1220,12 +1277,12 @@ export default function Home() {
 
               {currentExamForm.type === 'inne' && (
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Własne badanie:</label>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">Własne badanie:</label>
                   <input
                     type="text"
                     value={currentExamForm.customType}
                     onChange={(e) => setCurrentExamForm({...currentExamForm, customType: e.target.value})}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Wpisz nazwę badania"
                   />
                   {currentExamForm.type === 'inne' && !currentExamForm.customType.trim() && (
@@ -1236,11 +1293,11 @@ export default function Home() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Status:</label>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">Status:</label>
                   <select
                     value={currentExamForm.status}
                     onChange={(e) => setCurrentExamForm({...currentExamForm, status: e.target.value})}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="Zlecone">Zlecone</option>
                     <option value="W trakcie">W trakcie</option>
@@ -1250,11 +1307,11 @@ export default function Home() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Priorytet:</label>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">Priorytet:</label>
                   <select
                     value={currentExamForm.priority}
                     onChange={(e) => handlePriorityChange(e.target.value)}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     <option value="standard">Standard</option>
                     <option value="pilne">Pilne</option>
@@ -1265,22 +1322,22 @@ export default function Home() {
 
               {currentExamForm.priority === 'badanie z terminem' && (
                 <div>
-                  <label className="block text-sm font-semibold mb-2">Termin wykonania do dnia:</label>
+                  <label className="block text-sm font-semibold mb-2 text-gray-700">Termin wykonania do dnia:</label>
                   <input
                     type="date"
                     value={currentExamForm.deadlineDate}
                     onChange={(e) => setCurrentExamForm({...currentExamForm, deadlineDate: e.target.value})}
-                    className="w-full border rounded px-3 py-2"
+                    className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
               )}
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Pora dnia:</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Pora dnia:</label>
                 <select
                   value={currentExamForm.timeOfDay}
                   onChange={(e) => setCurrentExamForm({...currentExamForm, timeOfDay: e.target.value})}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="">-- nie dotyczy --</option>
                   <option value="rano">rano</option>
@@ -1292,14 +1349,14 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">
+                <label className="block text-sm font-semibold mb-2 text-gray-700">
                   Dodał / zlecił: <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={currentExamForm.createdBy}
                   onChange={(e) => setCurrentExamForm({...currentExamForm, createdBy: e.target.value})}
-                  className="w-full border rounded px-3 py-2"
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="np. lekarz dyżurny, piel. dyżurna, sekretariat"
                 />
                 {!currentExamForm.createdBy.trim() && (
@@ -1308,28 +1365,29 @@ export default function Home() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-2">Lista kontrolna przygotowania:</label>
+                <label className="block text-sm font-semibold mb-2 text-gray-700">Lista kontrolna przygotowania:</label>
                 <div className="grid grid-cols-2 gap-2">
                   {checklistOptions.map(option => (
-                    <label key={option} className="flex items-center gap-2">
+                    <label key={option} className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 cursor-pointer transition-colors">
                       <input
                         type="checkbox"
                         checked={currentExamForm.checklist.includes(option)}
                         onChange={() => toggleChecklist(option)}
+                        className="rounded text-blue-600 focus:ring-blue-500"
                       />
-                      <span className="text-sm">{option}</span>
+                      <span className="text-sm text-gray-700">{option}</span>
                     </label>
                   ))}
                 </div>
                 
                 {currentExamForm.checklist.includes('inne') && (
                   <div className="mt-3">
-                    <label className="block text-sm font-semibold mb-2">Opisz inne przygotowanie:</label>
+                    <label className="block text-sm font-semibold mb-2 text-gray-700">Opisz inne przygotowanie:</label>
                     <input
                       type="text"
                       value={currentExamForm.otherPreparation}
                       onChange={(e) => setCurrentExamForm({...currentExamForm, otherPreparation: e.target.value})}
-                      className="w-full border rounded px-3 py-2"
+                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       placeholder="np. podpisać zgodę od rodziny"
                     />
                   </div>
@@ -1339,7 +1397,7 @@ export default function Home() {
               {!editingExam && (
                 <button
                   onClick={addToExamList}
-                  className="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700"
+                  className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-white py-2.5 rounded-xl hover:shadow-lg transition-all font-medium"
                 >
                   + Dodaj do listy
                 </button>
@@ -1348,16 +1406,16 @@ export default function Home() {
 
             {!editingExam && examList.length > 0 && (
               <div className="mb-4">
-                <h3 className="font-semibold mb-2">Badania do dodania:</h3>
+                <h3 className="font-semibold mb-3 text-gray-700">Badania do dodania:</h3>
                 <div className="space-y-2">
                   {examList.map(exam => (
-                    <div key={exam.id} className={`p-3 rounded ${getStatusColor(exam.status)}`}>
+                    <div key={exam.id} className={`p-3 rounded-xl border ${getStatusColor(exam.status)}`}>
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <div className="font-semibold text-sm mb-1">
                             {getPriorityBadge(exam.priority)} {exam.type}
                           </div>
-                          <div className="text-xs space-y-1">
+                          <div className="text-xs space-y-1 text-gray-600">
                             <div>Status: {exam.status} | Priorytet: {exam.priority}</div>
                             {exam.priority === 'badanie z terminem' && exam.deadlineDate && (
                               <div>Termin: {formatDeadlineDate(exam.deadlineDate)}</div>
@@ -1371,7 +1429,7 @@ export default function Home() {
                         </div>
                         <button
                           onClick={() => removeFromExamList(exam.id)}
-                          className="text-red-600 hover:text-red-800 font-bold ml-2"
+                          className="text-red-600 hover:text-red-800 font-bold ml-2 text-xl"
                           title="Usuń z listy"
                         >
                           ×
@@ -1383,18 +1441,18 @@ export default function Home() {
               </div>
             )}
 
-            <div className="flex gap-2">
+            <div className="flex gap-3">
               {editingExam ? (
                 <>
                   <button
                     onClick={saveEditedExam}
-                    className="flex-1 bg-blue-600 text-white py-2 rounded hover:bg-blue-700"
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-2.5 rounded-xl hover:shadow-lg transition-all font-medium"
                   >
                     Zapisz zmiany
                   </button>
                   <button
                     onClick={() => setExamModal(null)}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+                    className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-300 transition-all font-medium"
                   >
                     Anuluj
                   </button>
@@ -1404,17 +1462,17 @@ export default function Home() {
                   <button
                     onClick={saveAllExams}
                     disabled={examList.length === 0}
-                    className={`flex-1 py-2 rounded ${
+                    className={`flex-1 py-2.5 rounded-xl font-medium transition-all ${
                       examList.length > 0
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white hover:shadow-lg'
+                        : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     }`}
                   >
                     Zapisz wszystkie ({examList.length})
                   </button>
                   <button
                     onClick={() => setExamModal(null)}
-                    className="flex-1 bg-gray-300 text-gray-700 py-2 rounded hover:bg-gray-400"
+                    className="flex-1 bg-gray-200 text-gray-700 py-2.5 rounded-xl hover:bg-gray-300 transition-all font-medium"
                   >
                     Anuluj
                   </button>
