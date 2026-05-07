@@ -726,17 +726,6 @@ export default function Home() {
               NefroPlaner Badania
             </h1>
 
-            <div className="flex gap-3 mb-6">
-              <button
-                onClick={() => setCurrentView('week')}
-                className={`px-4 py-2.5 rounded-xl font-medium transition-all ${
-                  currentView === 'week'
-                    ? 'bg-gradient-to-r from-blue-600 to-cyan-600 text-white shadow-lg shadow-blue-500/30'
-                    : 'bg-white/60 text-gray-700 hover:bg-white border border-gray-200'
-                }`}
-              >
-                Widok tygodniowy
-              </button>
               <button
                 onClick={() => setCurrentView('today')}
                 className={`px-4 py-2.5 rounded-xl font-medium transition-all ${
