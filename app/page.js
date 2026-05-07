@@ -1,29 +1,27 @@
-/ Custom scrollbar styles
 const scrollbarStyles = `
   .custom-scrollbar::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: linear-gradient(to right, #f0f9ff, #ecfeff);
-    border-radius: 10px;
+    background: #f1f5f9;
+    border-radius: 999px;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #0ea5e9, #06b6d4);
-    border-radius: 10px;
-    border: 2px solid #f0f9ff;
+    background: #94a3b8;
+    border-radius: 999px;
+    transition: background 0.2s ease;
   }
-  
+
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #0284c7, #0891b2);
+    background: #64748b;
   }
-  
-  /* Firefox */
+
   .custom-scrollbar {
     scrollbar-width: thin;
-    scrollbar-color: #0ea5e9 #f0f9ff;
+    scrollbar-color: #94a3b8 #f1f5f9;
   }
 `;
 
